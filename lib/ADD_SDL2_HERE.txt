@@ -1,0 +1,34 @@
+SDL2 Library Folder
+===================
+
+ADD SDL2 HERE (Optional - for graphics support)
+
+Download SDL2 from:
+https://github.com/libsdl-org/SDL/releases
+
+Get the file: SDL2-devel-x.x.x-mingw.tar.gz
+
+Extract and place the i686-w64-mingw32 folder here so you have:
+
+  lib\
+    SDL2-mingw32\
+      i686-w64-mingw32\
+        include\
+          SDL2\
+            SDL.h
+            (other headers)
+        lib\
+          libSDL2.a
+          libSDL2main.a
+          (other libraries)
+        bin\
+          SDL2.dll
+
+NOTE: SDL2 is OPTIONAL
+- Text programs work without SDL2
+- Graphics commands (SCREEN, PSET, LINE, CIRCLE) require SDL2
+- If SDL2 is missing, graphics programs won't compile
+
+For more information, see:
+  docs\QUICK_START_PORTABLE.md
+  docs\PORTABLE_DISTRIBUTION_GUIDE.md

@@ -1,0 +1,44 @@
+# Getting Scintilla Headers
+
+For building RBIDE, you need the Scintilla header files.
+
+## Quick Download
+
+Download from: https://www.scintilla.org/ScintillaDownload.html
+
+Get: **scintilla###.zip** (source code package)
+
+Extract these files to `lib/scintilla/include/`:
+- Scintilla.h
+- SciLexer.h
+- Sci_Position.h
+
+## Folder Structure
+
+After extracting:
+```
+lib/
+  scintilla/
+    include/
+      Scintilla.h
+      SciLexer.h
+      Sci_Position.h
+```
+
+## Alternative: Minimal Headers Included
+
+If you can't download, I've included minimal stub headers that
+should work for basic compilation.
+
+## Building Without Headers
+
+If headers are missing, the build script will show errors like:
+```
+fatal error: Scintilla.h: No such file or directory
+```
+
+Solution: Download the headers as described above.
+
+## License
+
+Scintilla is licensed under the MIT License (free to use).

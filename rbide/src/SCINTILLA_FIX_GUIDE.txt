@@ -1,0 +1,265 @@
+===============================================================================
+RBIDE SCINTILLA DISPLAY ISSUE - DIAGNOSTIC & FIX
+===============================================================================
+
+PROBLEM OBSERVED:
+-----------------
+The Scintilla editor window is completely blank/white - no text is visible
+even though the file appears to be loaded (shows in title bar).
+
+The compilation output shows the file path, so it WAS loaded, but the editor
+shows nothing.
+
+
+POSSIBLE CAUSES:
+----------------
+
+1. Scintilla not properly initialized
+   - DLL loaded but direct function not working
+   - Missing SCI_STYLECLEARALL call
+
+2. Background/foreground colors are the same
+   - Text is white on white background
+   - Not visible but actually there
+
+3. Text was set but not rendered
+   - Missing InvalidateRect/UpdateWindow
+   - Window needs redraw
+
+4. Font issue
+   - Font not loading properly
+   - Text exists but invisible due to font problem
+
+5. Read-only mode accidentally set
+   - Can't see cursor
+   - Text might not be editable
+
+
+FIXES APPLIED IN mainwindow_FIXED.cpp:
+---------------------------------------
+
+1. Added explicit background/foreground colors in SetupEditor():
+   SendEditor(SCI_STYLESETBACK, STYLE_DEFAULT, RGB(255, 255, 255));  // White
+   SendEditor(SCI_STYLESETFORE, STYLE_DEFAULT, RGB(0, 0, 0));        // Black
+
+2. Set background for all syntax highlighting styles:
+   Each style now has explicit white background
+
+3. Added caret visibility:
+   SendEditor(SCI_SETCARETFORE, RGB(0, 0, 0));  // Black caret
+   SendEditor(SCI_SETCARETWIDTH, 2);            // 2 pixels wide
+
+4. Ensured not read-only:
+   SendEditor(SCI_SETREADONLY, 0);
+
+5. Force redraw after setting text:
+   InvalidateRect(m_hwndEdit, NULL, TRUE);
+   UpdateWindow(m_hwndEdit);
+
+6. Added WM_NOTIFY handler for modification tracking:
+   Properly tracks when user types
+
+7. Better error checking:
+   Checks if Scintilla control and functions are valid
+
+8. Added diagnostic output:
+   LoadFile() now warns if editor appears empty after loading
+
+
+TESTING THE FIX:
+----------------
+
+Step 1: Replace mainwindow.cpp
+   Copy mainwindow_FIXED.cpp to your src folder
+   Rename it to mainwindow.cpp
+
+Step 2: Rebuild
+   Run: build.bat
+
+Step 3: Test with New File
+   1. Run rbide.exe
+   2. Type some text directly - does it appear?
+   3. If yes, Scintilla is working
+
+Step 4: Test with File Loading
+   1. File -> Open
+   2. Select color_test.bas
+   3. Does text appear now?
+
+Step 5: Check Output Panel
+   Look for any diagnostic messages about empty editor
+
+
+MANUAL TESTING:
+---------------
+
+If the fix doesn't work, try these manual tests:
+
+Test 1: Can you type?
+   - Click in the editor area
+   - Type "PRINT 123"
+   - Does text appear?
+   
+   If NO: Scintilla DLL problem
+   If YES: File loading problem
+
+Test 2: Is there a cursor?
+   - Click in editor area
+   - Do you see a blinking cursor?
+   
+   If NO: Scintilla not initialized
+   If YES: Text might be there but invisible
+
+Test 3: Select All
+   - Click Edit -> Select All (or Ctrl+A)
+   - Does anything get highlighted?
+   
+   If YES: Text is there but not visible (color problem)
+   If NO: No text in editor
+
+Test 4: Check Scintilla.dll
+   - Is Scintilla.dll in rbide folder?
+   - Check file size (should be ~800KB to 2MB)
+   - Try different version of Scintilla.dll
+
+
+ALTERNATIVE SCINTILLA VERSIONS:
+--------------------------------
+
+If current Scintilla.dll doesn't work, try these:
+
+Option 1: Notepad++ Scintilla.dll
+   C:\Program Files\Notepad++\Scintilla.dll
+   Copy to rbide folder
+
+Option 2: Official Scintilla
+   Download from: https://www.scintilla.org/ScintillaDownload.html
+   Get Windows binary package
+   Extract Scintilla.dll
+
+Option 3: SciTE Editor
+   Download SciTE which includes Scintilla
+   Copy its Scintilla.dll
+
+
+DEBUGGING CODE TO ADD:
+----------------------
+
+If problem persists, add this to LoadFile() after SetEditorText():
+
+    // Debug: Check what's in Scintilla
+    char msg[512];
+    sptr_t scintillaLen = SendEditor(SCI_GETLENGTH);
+    sprintf(msg, "DEBUG: Scintilla reports %d characters\r\n", (int)scintillaLen);
+    AppendOutput(msg);
+    
+    sptr_t lineCount = SendEditor(SCI_GETLINECOUNT);
+    sprintf(msg, "DEBUG: Scintilla reports %d lines\r\n", (int)lineCount);
+    AppendOutput(msg);
+    
+    // Try to get first line
+    char firstLine[256] = {0};
+    SendEditor(SCI_GETLINE, 0, (sptr_t)firstLine);
+    sprintf(msg, "DEBUG: First line: %s\r\n", firstLine);
+    AppendOutput(msg);
+
+This will tell you if text is actually IN Scintilla but just not visible.
+
+
+WORST CASE: USE REGULAR EDIT CONTROL:
+--------------------------------------
+
+If Scintilla won't work at all, you can temporarily use a regular
+Windows EDIT control:
+
+In CreateControls(), replace Scintilla creation with:
+
+    m_hwndEdit = CreateWindowEx(
+        WS_EX_CLIENTEDGE, "EDIT", "",
+        WS_CHILD | WS_VISIBLE | WS_VSCROLL | WS_HSCROLL | 
+        ES_MULTILINE | ES_AUTOVSCROLL | ES_AUTOHSCROLL | ES_WANTRETURN,
+        0, 0, rcClient.right, rcClient.bottom - m_splitterPos,
+        m_hwnd, (HMENU)IDC_EDITOR, m_hInstance, NULL
+    );
+
+Then comment out all SendEditor() calls.
+You'll lose syntax highlighting but can at least edit files.
+
+
+COMMON SCINTILLA ISSUES:
+-------------------------
+
+Issue: "Failed to create Scintilla control"
+Solution: Scintilla.dll not in same folder as rbide.exe
+
+Issue: White screen, can type but don't see text
+Solution: Foreground color = background color (fixed in new version)
+
+Issue: Text loads but disappears
+Solution: Missing redraw (fixed in new version)
+
+Issue: Cursor not visible
+Solution: Caret color same as background (fixed in new version)
+
+Issue: Can't type anything
+Solution: Read-only mode enabled (fixed in new version)
+
+
+CHECKING IF SCINTILLA IS THE PROBLEM:
+--------------------------------------
+
+1. Check Task Manager when RBIDE is running
+   - Look for rbide.exe
+   - Check if it's using reasonable memory (~10-50 MB)
+   - If using 0 MB, something is very wrong
+
+2. Use Spy++ or similar tool
+   - Check if Scintilla window exists
+   - Check its size and position
+   - Check its window class name (should be "Scintilla")
+
+3. Run from command line with file:
+   rbide.exe test.bas > debug.txt 2>&1
+   Check debug.txt for any error messages
+
+
+QUICK FIX CHECKLIST:
+--------------------
+
+✓ Replace mainwindow.cpp with mainwindow_FIXED.cpp
+✓ Rebuild with build.bat
+✓ Verify Scintilla.dll is present
+✓ Test: Type in editor - does text appear?
+✓ Test: Open file - does text appear?
+✓ Check output panel for warnings
+✓ Try Ctrl+A to see if text is selected (invisible but there)
+
+
+WHAT TO REPORT:
+---------------
+
+If it still doesn't work, provide:
+
+1. Can you type and see the text you type?
+2. Does Ctrl+A select anything?
+3. What does the output panel say after loading?
+4. Scintilla.dll file size and date
+5. Windows version
+6. Any error messages in Event Viewer
+
+
+EXPECTED RESULT:
+----------------
+
+After the fix, you should see:
+- White editor background
+- Black text
+- Line numbers in left margin (gray background)
+- Blinking black cursor
+- Syntax highlighting (blue keywords, green comments, etc.)
+- Text appears immediately when typing or loading
+
+
+===============================================================================
+Try the fixed mainwindow_FIXED.cpp and let me know the results!
+===============================================================================

@@ -1,0 +1,59 @@
+// Minimal Scintilla.h stub for RBIDE compilation
+// For full Scintilla.h, download from: https://www.scintilla.org
+
+#ifndef SCINTILLA_H
+#define SCINTILLA_H
+
+// Basic types
+typedef long sptr_t;
+typedef unsigned long uptr_t;
+
+// Scintilla messages
+#define SCI_START 2000
+#define SCI_ADDTEXT (SCI_START + 1)
+#define SCI_CLEARALL (SCI_START + 4)
+#define SCI_SETTEXT (SCI_START + 12)
+#define SCI_GETTEXT (SCI_START + 13)
+#define SCI_GETLENGTH (SCI_START + 14)
+#define SCI_GETTEXTLENGTH SCI_GETLENGTH
+#define SCI_SETCODEPAGE (SCI_START + 37)
+#define SCI_UNDO (SCI_START + 176)
+#define SCI_REDO (SCI_START + 178)
+#define SCI_SELECTALL (SCI_START + 185)
+#define SCI_CUT (SCI_START + 186)
+#define SCI_COPY (SCI_START + 187)
+#define SCI_PASTE (SCI_START + 188)
+#define SCI_CANUNDO (SCI_START + 198)
+#define SCI_CANREDO (SCI_START + 199)
+#define SCI_EMPTYUNDOBUFFER (SCI_START + 200)
+#define SCI_SETLEXER (SCI_START + 400)
+#define SCI_SETKEYWORDS (SCI_START + 401)
+#define SCI_GETDIRECTFUNCTION (SCI_START + 406)
+#define SCI_GETDIRECTPOINTER (SCI_START + 407)
+#define SCI_STYLESETFORE (SCI_START + 452)
+#define SCI_STYLESETBACK (SCI_START + 453)
+#define SCI_STYLESETBOLD (SCI_START + 454)
+#define SCI_STYLESETFONT (SCI_START + 456)
+#define SCI_STYLESETSIZE (SCI_START + 457)
+#define SCI_STYLECLEARALL (SCI_START + 502)
+#define SCI_SETMARGINTYPEN (SCI_START + 524)
+#define SCI_SETMARGINWIDTHN (SCI_START + 526)
+#define SCI_GETCURRENTPOS (SCI_START + 268)
+#define SCI_LINEFROMPOSITION (SCI_START + 278)
+#define SCI_GETCOLUMN (SCI_START + 281)
+#define SCI_SETTABWIDTH (SCI_START + 359)
+#define SCI_SETINDENT (SCI_START + 391)
+#define SCI_SETUSETABS (SCI_START + 393)
+#define SCI_GETMODIFY (SCI_START + 200)
+#define SCI_SETSEL (SCI_START + 265)
+
+// Style constants
+#define STYLE_DEFAULT 32
+
+// Margin types
+#define SC_MARGIN_NUMBER 0
+
+// Code page
+#define SC_CP_UTF8 65001
+
+#endif // SCINTILLA_H
