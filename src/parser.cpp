@@ -183,7 +183,8 @@ std::unique_ptr<ASTNode> Parser::parse_power() {
 std::unique_ptr<ASTNode> Parser::parse_term() {
     auto left = parse_power();
     
-    while (check(TokenType::MULTIPLY) || check(TokenType::DIVIDE) || check(TokenType::MOD)) {
+    while (check(TokenType::MULTIPLY) || check(TokenType::DIVIDE) || 
+           check(TokenType::INTDIV) || check(TokenType::MOD)) {
         std::string op = current_token.value;
         TokenType op_type = current_token.type;
         advance();
@@ -191,6 +192,8 @@ std::unique_ptr<ASTNode> Parser::parse_term() {
         
         if (op_type == TokenType::MOD) {
             left = std::make_unique<BinaryOpNode>("MOD", std::move(left), std::move(right));
+        } else if (op_type == TokenType::INTDIV) {
+            left = std::make_unique<BinaryOpNode>("\\", std::move(left), std::move(right));
         } else {
             left = std::make_unique<BinaryOpNode>(op, std::move(left), std::move(right));
         }
@@ -290,6 +293,10 @@ std::unique_ptr<ASTNode> Parser::parse_print_stmt() {
             bool was_semicolon = (tokens[pos - 1].type == TokenType::SEMICOLON);
             
             if (check(TokenType::NEWLINE) || check(TokenType::END_OF_FILE) || check(TokenType::COLON)) {
+                // Trailing comma or semicolon - update the last entry
+                if (!print_stmt->use_semicolon.empty()) {
+                    print_stmt->use_semicolon.back() = was_semicolon;
+                }
                 break;
             }
             
@@ -360,9 +367,18 @@ std::unique_ptr<ASTNode> Parser::parse_if_stmt() {
     
     auto if_stmt = std::make_unique<IfStmt>(std::move(condition));
     
-    // Check if it's old-style IF THEN linenum or block IF
+    // Check if it's old-style IF THEN linenum or IF THEN GOTO linenum
     if (check(TokenType::NUMBER)) {
         // Old style: IF condition THEN linenum
+        if_stmt->target_line = static_cast<int>(std::stod(current_token.value));
+        advance();
+        if_stmt->is_block = false;
+    } else if (check(TokenType::GOTO)) {
+        // IF condition THEN GOTO linenum
+        advance();  // consume GOTO
+        if (!check(TokenType::NUMBER)) {
+            error("Expected line number after GOTO");
+        }
         if_stmt->target_line = static_cast<int>(std::stod(current_token.value));
         advance();
         if_stmt->is_block = false;
@@ -559,28 +575,58 @@ std::unique_ptr<ASTNode> Parser::parse_while_stmt() {
     
     auto while_stmt = std::make_unique<WhileStmt>(std::move(condition));
     
-    skip_newlines();
-    
-    while (!check(TokenType::WEND) && !check(TokenType::END_OF_FILE)) {
-        auto stmt = parse_line();
-        if (stmt) {
-            while_stmt->body.push_back(std::move(stmt));
-        }
+    // Check if this is a single-line WHILE...WEND (with colons)
+    // Example: WHILE INKEY$="":WEND
+    if (check(TokenType::COLON)) {
+        // Single-line format
+        advance();  // consume the colon
         
-        if (match(TokenType::COLON)) {
-            continue;
-        }
-        
-        if (!check(TokenType::END_OF_FILE) && !check(TokenType::WEND)) {
-            if (!match(TokenType::NEWLINE)) {
-                error("Expected newline after statement");
+        // Parse statements until WEND
+        while (!check(TokenType::WEND) && !check(TokenType::NEWLINE) && !check(TokenType::END_OF_FILE)) {
+            auto stmt = parse_statement();  // Parse without line number wrapper
+            if (stmt) {
+                // Wrap in Statement with line_num 0
+                while_stmt->body.push_back(std::make_unique<Statement>(0, std::move(stmt)));
             }
+            
+            // Check for more colons (more statements)
+            if (check(TokenType::COLON)) {
+                advance();
+                // If next is WEND, break
+                if (check(TokenType::WEND)) {
+                    break;
+                }
+                continue;
+            }
+            break;
         }
         
+        expect(TokenType::WEND);
+    } else {
+        // Multi-line format
         skip_newlines();
+        
+        while (!check(TokenType::WEND) && !check(TokenType::END_OF_FILE)) {
+            auto stmt = parse_line();
+            if (stmt) {
+                while_stmt->body.push_back(std::move(stmt));
+            }
+            
+            if (match(TokenType::COLON)) {
+                continue;
+            }
+            
+            if (!check(TokenType::END_OF_FILE) && !check(TokenType::WEND)) {
+                if (!match(TokenType::NEWLINE)) {
+                    error("Expected newline after statement");
+                }
+            }
+            
+            skip_newlines();
+        }
+        
+        expect(TokenType::WEND);
     }
-    
-    expect(TokenType::WEND);
     
     return while_stmt;
 }
@@ -852,34 +898,18 @@ std::unique_ptr<ASTNode> Parser::parse_dim_stmt() {
         
         expect(TokenType::LPAREN);
         
-        // Parse dimensions
-        if (!check(TokenType::NUMBER)) {
-            error("Expected array dimension");
-        }
-        
-        array_decl.dimensions.push_back(static_cast<int>(std::stod(current_token.value)));
-        advance();
+        // Parse dimensions as expressions (can be numbers or variables)
+        array_decl.dimension_exprs.push_back(parse_expression());
         
         // Parse additional dimensions (for multi-dimensional arrays)
         while (check(TokenType::COMMA) && !check_ahead_for_identifier()) {
             match(TokenType::COMMA);
-            if (!check(TokenType::NUMBER)) {
-                error("Expected array dimension");
-            }
-            array_decl.dimensions.push_back(static_cast<int>(std::stod(current_token.value)));
-            advance();
+            array_decl.dimension_exprs.push_back(parse_expression());
         }
         
         expect(TokenType::RPAREN);
         
-        dim_stmt->arrays.push_back(array_decl);
-        
-        // Also populate legacy fields for first array (backward compatibility)
-        if (dim_stmt->arrays.size() == 1) {
-            dim_stmt->name = array_decl.name;
-            dim_stmt->dimensions = array_decl.dimensions;
-            dim_stmt->is_string = array_decl.is_string;
-        }
+        dim_stmt->arrays.push_back(std::move(array_decl));
         
     } while (match(TokenType::COMMA));  // Continue if there's a comma for next array
     
@@ -900,12 +930,8 @@ std::unique_ptr<ASTNode> Parser::parse_open_stmt() {
     auto open_stmt = std::make_unique<OpenStmt>();
     
     // OPEN filename FOR mode AS #filenumber
-    if (!check(TokenType::STRING)) {
-        error("Expected filename in OPEN statement");
-    }
-    
-    open_stmt->filename = current_token.value;
-    advance();
+    // Filename can now be a string literal or a variable expression
+    open_stmt->filename = parse_expression();
     
     // FOR keyword (optional in some dialects, but we'll require it)
     if (check(TokenType::FOR)) {

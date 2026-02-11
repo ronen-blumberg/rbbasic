@@ -64,6 +64,7 @@ const char* token_type_to_string(TokenType type) {
         case TokenType::MINUS: return "MINUS";
         case TokenType::MULTIPLY: return "MULTIPLY";
         case TokenType::DIVIDE: return "DIVIDE";
+        case TokenType::INTDIV: return "INTDIV";
         case TokenType::MOD: return "MOD";
         case TokenType::POWER: return "POWER";
         case TokenType::EQUALS: return "EQUALS";

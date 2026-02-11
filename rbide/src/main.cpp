@@ -1,5 +1,5 @@
 // main.cpp - RBIDE Entry Point
-// RB BASIC Integrated Development Environment
+// RB BASIC (Ronen Blumberg Basic) Integrated Development Environment
 // Copyright (c) 2025 Ronen Blumberg
 
 #include <windows.h>
@@ -65,14 +65,15 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
         }
     }
     
-    // Message loop
+    // Message loop with accelerator support
     MSG msg;
-    MainWindow* pMainWnd = &mainWnd;  // ADD THIS
-	while (GetMessage(&msg, NULL, 0, 0)) {
-		if (!TranslateAccelerator(pMainWnd->GetHWND(), pMainWnd->GetAccel(), &msg)) {  // ADD THIS
-			TranslateMessage(&msg);
-			DispatchMessage(&msg);
-    }  // ADD THIS
+    MainWindow* pMainWnd = &mainWnd;
+    while (GetMessage(&msg, NULL, 0, 0)) {
+        if (!TranslateAccelerator(pMainWnd->GetHWND(), pMainWnd->GetAccel(), &msg)) {
+            TranslateMessage(&msg);
+            DispatchMessage(&msg);
+        }
     }
+    
     return (int)msg.wParam;
 }

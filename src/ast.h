@@ -266,7 +266,7 @@ class DimStmt : public ASTNode {
 public:
     struct ArrayDecl {
         std::string name;
-        std::vector<int> dimensions;
+        std::vector<std::unique_ptr<ASTNode>> dimension_exprs;  // Changed from int to expressions
         bool is_string;
         
         ArrayDecl(const std::string& n) : name(n) {
@@ -276,16 +276,7 @@ public:
     
     std::vector<ArrayDecl> arrays;  // Support multiple arrays: DIM A(10), B(5)
     
-    // Legacy single-array interface (for compatibility)
-    std::string name;
-    std::vector<int> dimensions;
-    bool is_string;
-    
-    DimStmt(const std::string& n) : ASTNode(NodeType::DIM_STMT), name(n) {
-        is_string = (!n.empty() && n.back() == '$');
-    }
-    
-    DimStmt() : ASTNode(NodeType::DIM_STMT), is_string(false) {}
+    DimStmt() : ASTNode(NodeType::DIM_STMT) {}
 };
 
 // ============== SUBROUTINES ==============
@@ -321,7 +312,7 @@ public:
 
 class OpenStmt : public ASTNode {
 public:
-    std::string filename;
+    std::unique_ptr<ASTNode> filename;  // Changed from string to expression
     std::string mode;  // "INPUT", "OUTPUT", "APPEND"
     int file_number;
     

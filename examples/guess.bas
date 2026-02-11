@@ -17,7 +17,7 @@
 170 REM Main game loop
 180 WHILE TRIES < MAXGUESSES
 190   TRIES = TRIES + 1
-200   PRINT "Guess #"; TRIES; ": ";
+200   PRINT "Guess # "; TRIES; ": ";
 210   INPUT GUESS
 220   IF GUESS < 1 OR GUESS > 100 THEN
 230     PRINT "Please guess between 1 and 100!"
@@ -32,7 +32,7 @@
 320   END IF
 330   REMAINING = MAXGUESSES - TRIES
 340   IF REMAINING > 0 THEN
-350     PRINT "You have"; REMAINING; "guesses left."
+350     PRINT "You have "; REMAINING; "guesses left."
 360   END IF
 370   PRINT
 380 WEND

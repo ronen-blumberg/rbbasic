@@ -5,8 +5,8 @@
 50 CLS
 60 RANDOMIZE
 70 PRINT "RB BASIC Graphics Demo"
-80 PRINT "Press any key to start..."
-90 A$ = INPUT$(1)
+80 PRINT "Get Ready..."
+90 SLEEP 5
 100 CLS
 110 REM Draw some random pixels
 120 FOR I = 1 TO 500
@@ -15,7 +15,7 @@
 150   C = INT(RND * 16)
 160   PSET (X, Y), C
 170 NEXT I
-180 A$ = INPUT$(1)
+180 SLEEP 5
 190 CLS
 200 REM Draw some lines
 210 FOR I = 1 TO 20
@@ -26,7 +26,7 @@
 260   C = INT(RND * 16)
 270   LINE (X1, Y1)-(X2, Y2), C
 280 NEXT I
-290 A$ = INPUT$(1)
+290 SLEEP 5
 300 CLS
 310 REM Draw some circles
 320 FOR I = 1 TO 15
@@ -36,7 +36,7 @@
 360   C = INT(RND * 16)
 370   CIRCLE (X, Y), R, C
 380 NEXT I
-390 A$ = INPUT$(1)
+390 SLEEP 5
 400 CLS
 410 REM Draw boxes
 420 FOR I = 1 TO 10
@@ -47,7 +47,7 @@
 470   C = INT(RND * 16)
 480   LINE (X1, Y1)-(X2, Y2), C, B
 490 NEXT I
-500 A$ = INPUT$(1)
+500 SLEEP 5
 510 CLS
 520 REM Draw filled boxes
 530 FOR I = 1 TO 10
@@ -58,7 +58,7 @@
 580   C = INT(RND * 16)
 590   LINE (X1, Y1)-(X2, Y2), C, BF
 600 NEXT I
-610 A$ = INPUT$(1)
+610 SLEEP 5
 620 CLS
 630 REM Simple animation
 640 X = 320
@@ -77,11 +77,11 @@
 770   REM Draw new circle
 780   CIRCLE (X, Y), 20, 14
 790   REM Small delay (draw and erase quickly)
-800   FOR D = 1 TO 500: NEXT D
+800   SLEEP 0.05
 810 NEXT I
-820 REM End
+820 REM 
 830 LOCATE 1, 1
 840 PRINT "Graphics demo complete!"
-850 A$ = INPUT$(1)
+850 SLEEP 5
 860 SCREEN 0
 870 END

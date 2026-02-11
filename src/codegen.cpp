@@ -35,6 +35,50 @@ void CodeGenerator::writeln(const std::string& code) {
     output << get_indent() << code << "\n";
 }
 
+std::string CodeGenerator::escape_string(const std::string& str) {
+    std::string result;
+    result.reserve(str.length() * 2);  // Reserve space for potential escapes
+    
+    for (char c : str) {
+        if (c == '\\') {
+            result += "\\\\";  // Escape backslash
+        } else if (c == '"') {
+            result += "\\\"";  // Escape double quote
+        } else if (c == '\n') {
+            result += "\\n";   // Escape newline
+        } else if (c == '\r') {
+            result += "\\r";   // Escape carriage return
+        } else if (c == '\t') {
+            result += "\\t";   // Escape tab
+        } else {
+            result += c;
+        }
+    }
+    
+    return result;
+}
+
+// Sanitize variable names to avoid C/Windows reserved words
+std::string CodeGenerator::sanitize_varname(const std::string& name) {
+    // List of C/Windows reserved words that conflict
+    static const std::unordered_set<std::string> reserved = {
+        "SIZE", "POINT", "RECT", "LINE", "WINDOW", "ERROR", "STATUS",
+        "FILE", "TEXT", "COLOR", "BOOL", "CHAR", "SHORT", "LONG",
+        "FLOAT", "DOUBLE", "VOID", "INT", "CONST", "STATIC", "EXTERN",
+        "AUTO", "REGISTER", "VOLATILE", "SIGNED", "UNSIGNED",
+        "STRUCT", "UNION", "ENUM", "TYPEDEF", "SIZEOF",
+        "IF", "ELSE", "SWITCH", "CASE", "DEFAULT", "FOR", "WHILE",
+        "DO", "BREAK", "CONTINUE", "RETURN", "GOTO"
+    };
+    
+    // Check if this is a reserved word
+    if (reserved.find(name) != reserved.end()) {
+        return "BAS_" + name;  // Prefix with BAS_ to avoid conflicts
+    }
+    
+    return name;
+}
+
 // ============== VARIABLE COLLECTION ==============
 
 void CodeGenerator::collect_expr_variables(const ASTNode* expr) {
@@ -210,6 +254,15 @@ void CodeGenerator::collect_stmt_body_variables(const std::vector<std::unique_pt
                 break;
             }
             
+            case NodeType::OPEN_STMT: {
+                const OpenStmt* open_stmt = static_cast<const OpenStmt*>(body_stmt->stmt.get());
+                // Collect variables from filename expression
+                if (open_stmt->filename) {
+                    collect_expr_variables(open_stmt->filename.get());
+                }
+                break;
+            }
+            
             default:
                 break;
         }
@@ -222,7 +275,18 @@ void CodeGenerator::detect_graphics_sound(const Program* program) {
         if (!stmt->stmt) continue;
         
         switch (stmt->stmt->type) {
-            case NodeType::SCREEN_STMT:
+            case NodeType::SCREEN_STMT: {
+                // SCREEN 0 is text mode, not graphics
+                // Only modes 1-13 require SDL graphics
+                const ScreenStmt* screen = static_cast<const ScreenStmt*>(stmt->stmt.get());
+                if (screen->mode && screen->mode->type == NodeType::NUMBER) {
+                    const NumberNode* num = static_cast<const NumberNode*>(screen->mode.get());
+                    if (num->value > 0) {
+                        needs_sdl = true;
+                    }
+                }
+                break;
+            }
             case NodeType::PSET_STMT:
             case NodeType::LINE_STMT:
             case NodeType::CIRCLE_STMT:
@@ -254,21 +318,25 @@ void CodeGenerator::collect_variables(const Program* program) {
         if (stmt->stmt && stmt->stmt->type == NodeType::DIM_STMT) {
             const DimStmt* dim = static_cast<const DimStmt*>(stmt->stmt.get());
             
-            // Handle new multi-array format
-            if (!dim->arrays.empty()) {
-                for (const auto& array_decl : dim->arrays) {
-                    if (array_decl.is_string) {
-                        string_arrays[array_decl.name] = array_decl.dimensions;
-                    } else {
-                        arrays[array_decl.name] = array_decl.dimensions;
+            // Handle new multi-array format with expression-based dimensions
+            for (const auto& array_decl : dim->arrays) {
+                ArrayInfo info;
+                info.is_dynamic = false;
+                
+                // Check if any dimension is non-constant
+                for (const auto& dim_expr : array_decl.dimension_exprs) {
+                    info.dimension_exprs.push_back(dim_expr.get());
+                    
+                    // Mark as dynamic if not a simple number literal
+                    if (dim_expr->type != NodeType::NUMBER) {
+                        info.is_dynamic = true;
                     }
                 }
-            } else {
-                // Legacy single-array format (backward compatibility)
-                if (dim->is_string) {
-                    string_arrays[dim->name] = dim->dimensions;
+                
+                if (array_decl.is_string) {
+                    string_arrays[array_decl.name] = info;
                 } else {
-                    arrays[dim->name] = dim->dimensions;
+                    arrays[array_decl.name] = info;
                 }
             }
         }
@@ -384,6 +452,133 @@ void CodeGenerator::collect_variables(const Program* program) {
                 break;
             }
             
+            case NodeType::OPEN_STMT: {
+                const OpenStmt* open_stmt = static_cast<const OpenStmt*>(stmt->stmt.get());
+                // Collect variables from filename expression
+                if (open_stmt->filename) {
+                    collect_expr_variables(open_stmt->filename.get());
+                }
+                break;
+            }
+            
+            case NodeType::LINE_STMT: {
+                const LineStmt* line_stmt = static_cast<const LineStmt*>(stmt->stmt.get());
+                collect_expr_variables(line_stmt->x1.get());
+                collect_expr_variables(line_stmt->y1.get());
+                collect_expr_variables(line_stmt->x2.get());
+                collect_expr_variables(line_stmt->y2.get());
+                if (line_stmt->color) {
+                    collect_expr_variables(line_stmt->color.get());
+                }
+                break;
+            }
+            
+            case NodeType::CIRCLE_STMT: {
+                const CircleStmt* circle_stmt = static_cast<const CircleStmt*>(stmt->stmt.get());
+                collect_expr_variables(circle_stmt->x.get());
+                collect_expr_variables(circle_stmt->y.get());
+                collect_expr_variables(circle_stmt->radius.get());
+                if (circle_stmt->color) {
+                    collect_expr_variables(circle_stmt->color.get());
+                }
+                if (circle_stmt->start_angle) {
+                    collect_expr_variables(circle_stmt->start_angle.get());
+                }
+                if (circle_stmt->end_angle) {
+                    collect_expr_variables(circle_stmt->end_angle.get());
+                }
+                if (circle_stmt->aspect) {
+                    collect_expr_variables(circle_stmt->aspect.get());
+                }
+                break;
+            }
+            
+            case NodeType::PSET_STMT: {
+                const PsetStmt* pset_stmt = static_cast<const PsetStmt*>(stmt->stmt.get());
+                collect_expr_variables(pset_stmt->x.get());
+                collect_expr_variables(pset_stmt->y.get());
+                if (pset_stmt->color) {
+                    collect_expr_variables(pset_stmt->color.get());
+                }
+                break;
+            }
+            
+            case NodeType::PAINT_STMT: {
+                const PaintStmt* paint_stmt = static_cast<const PaintStmt*>(stmt->stmt.get());
+                collect_expr_variables(paint_stmt->x.get());
+                collect_expr_variables(paint_stmt->y.get());
+                collect_expr_variables(paint_stmt->paint_color.get());
+                if (paint_stmt->border_color) {
+                    collect_expr_variables(paint_stmt->border_color.get());
+                }
+                break;
+            }
+            
+            case NodeType::LOCATE_STMT: {
+                const LocateStmt* loc_stmt = static_cast<const LocateStmt*>(stmt->stmt.get());
+                if (loc_stmt->row) {
+                    collect_expr_variables(loc_stmt->row.get());
+                }
+                if (loc_stmt->col) {
+                    collect_expr_variables(loc_stmt->col.get());
+                }
+                if (loc_stmt->cursor) {
+                    collect_expr_variables(loc_stmt->cursor.get());
+                }
+                break;
+            }
+            
+            case NodeType::COLOR_STMT: {
+                const ColorStmt* col_stmt = static_cast<const ColorStmt*>(stmt->stmt.get());
+                if (col_stmt->foreground) {
+                    collect_expr_variables(col_stmt->foreground.get());
+                }
+                if (col_stmt->background) {
+                    collect_expr_variables(col_stmt->background.get());
+                }
+                if (col_stmt->border) {
+                    collect_expr_variables(col_stmt->border.get());
+                }
+                break;
+            }
+            
+            case NodeType::SCREEN_STMT: {
+                const ScreenStmt* screen_stmt = static_cast<const ScreenStmt*>(stmt->stmt.get());
+                if (screen_stmt->mode) {
+                    collect_expr_variables(screen_stmt->mode.get());
+                }
+                break;
+            }
+            
+            case NodeType::SOUND_STMT: {
+                const SoundStmt* sound_stmt = static_cast<const SoundStmt*>(stmt->stmt.get());
+                collect_expr_variables(sound_stmt->frequency.get());
+                collect_expr_variables(sound_stmt->duration.get());
+                break;
+            }
+            
+            case NodeType::PLAY_STMT: {
+                const PlayStmt* play_stmt = static_cast<const PlayStmt*>(stmt->stmt.get());
+                collect_expr_variables(play_stmt->music_string.get());
+                break;
+            }
+            
+            case NodeType::SLEEP_STMT: {
+                const SleepStmt* sleep_stmt = static_cast<const SleepStmt*>(stmt->stmt.get());
+                if (sleep_stmt->duration) {
+                    collect_expr_variables(sleep_stmt->duration.get());
+                }
+                break;
+            }
+            
+            case NodeType::RANDOMIZE_STMT: {
+                const RandomizeStmt* rand_stmt = static_cast<const RandomizeStmt*>(stmt->stmt.get());
+                if (rand_stmt->seed) {
+                    collect_expr_variables(rand_stmt->seed.get());
+                }
+                break;
+            }
+            
             default:
                 break;
         }
@@ -486,12 +681,8 @@ void CodeGenerator::generate_variable_declarations() {
     if (!numeric_variables.empty()) {
         writeln("// Numeric variables");
         for (const auto& var : numeric_variables) {
-            // On Windows with SDL2, CY conflicts with Windows currency type
-            // Prefix it with rb_ to avoid conflict
-            std::string c_var = var;
-            if (needs_sdl && c_var == "CY") {
-                c_var = "rb_CY";
-            }
+            // Sanitize variable name to avoid C/Windows conflicts
+            std::string c_var = sanitize_varname(var);
             writeln("double " + c_var + " = 0.0;");
         }
         writeln("");
@@ -506,10 +697,8 @@ void CodeGenerator::generate_variable_declarations() {
                 c_var.pop_back();
                 c_var += "_str";
             }
-            // Skip DATE to avoid conflict with Windows DATE type
-            if (c_var == "DATE_str" || c_var == "DATE") {
-                continue;
-            }
+            // Sanitize to avoid C/Windows conflicts
+            c_var = sanitize_varname(c_var);
             writeln("char " + c_var + "[256] = \"\";");
         }
         writeln("");
@@ -553,15 +742,25 @@ void CodeGenerator::generate_array_declarations() {
     if (!arrays.empty()) {
         writeln("// Numeric arrays");
         for (const auto& arr_pair : arrays) {
-            std::string arr_name = arr_pair.first;
-            const auto& dims = arr_pair.second;
+            std::string arr_name = sanitize_varname(arr_pair.first);
+            const auto& info = arr_pair.second;
             
-            std::string decl = "double " + arr_name;
-            for (int dim : dims) {
-                decl += "[" + std::to_string(dim + 1) + "]";
+            if (info.is_dynamic) {
+                // Dynamic array - declare as pointer
+                std::string decl = "double* " + arr_name + " = NULL;";
+                writeln(decl);
+            } else {
+                // Static array - use fixed dimensions
+                std::string decl = "double " + arr_name;
+                for (const ASTNode* dim_expr : info.dimension_exprs) {
+                    // Must be a number node
+                    const NumberNode* num = static_cast<const NumberNode*>(dim_expr);
+                    int dim_size = static_cast<int>(num->value);
+                    decl += "[" + std::to_string(dim_size + 1) + "]";
+                }
+                decl += " = {0};";
+                writeln(decl);
             }
-            decl += " = {0};";
-            writeln(decl);
         }
         writeln("");
     }
@@ -575,14 +774,26 @@ void CodeGenerator::generate_array_declarations() {
                 arr_name += "_str";
             }
             
-            const auto& dims = arr_pair.second;
+            // Sanitize array name
+            arr_name = sanitize_varname(arr_name);
             
-            std::string decl = "char " + arr_name;
-            for (int dim : dims) {
-                decl += "[" + std::to_string(dim + 1) + "]";
+            const auto& info = arr_pair.second;
+            
+            if (info.is_dynamic) {
+                // Dynamic string array - declare as pointer
+                std::string decl = "char (*" + arr_name + ")[256] = NULL;";
+                writeln(decl);
+            } else {
+                // Static string array
+                std::string decl = "char " + arr_name;
+                for (const ASTNode* dim_expr : info.dimension_exprs) {
+                    const NumberNode* num = static_cast<const NumberNode*>(dim_expr);
+                    int dim_size = static_cast<int>(num->value);
+                    decl += "[" + std::to_string(dim_size + 1) + "]";
+                }
+                decl += "[256] = {0};";
+                writeln(decl);
             }
-            decl += "[256] = {0};";
-            writeln(decl);
         }
         writeln("");
     }
@@ -1111,6 +1322,7 @@ void CodeGenerator::generate_function_call(const FunctionCallNode* func) {
     
     // Math functions
     if (fname == "SIN" || fname == "COS" || fname == "TAN" || fname == "LOG" || fname == "EXP") {
+        needs_math_h = true;  // Ensure math.h is included
         write(fname == "TAN" ? "tan" : fname == "SIN" ? "sin" : fname == "COS" ? "cos" : 
               fname == "LOG" ? "log" : "exp");
         write("(");
@@ -1120,6 +1332,7 @@ void CodeGenerator::generate_function_call(const FunctionCallNode* func) {
         write(")");
     }
     else if (fname == "ATN") {
+        needs_math_h = true;  // Ensure math.h is included
         write("atan(");
         if (!func->arguments.empty()) {
             generate_expression(func->arguments[0].get());
@@ -1127,6 +1340,7 @@ void CodeGenerator::generate_function_call(const FunctionCallNode* func) {
         write(")");
     }
     else if (fname == "SQR") {
+        needs_math_h = true;  // Ensure math.h is included
         write("sqrt(");
         if (!func->arguments.empty()) {
             generate_expression(func->arguments[0].get());
@@ -1134,6 +1348,7 @@ void CodeGenerator::generate_function_call(const FunctionCallNode* func) {
         write(")");
     }
     else if (fname == "ABS") {
+        needs_math_h = true;  // Ensure math.h is included
         write("fabs(");
         if (!func->arguments.empty()) {
             generate_expression(func->arguments[0].get());
@@ -1141,6 +1356,7 @@ void CodeGenerator::generate_function_call(const FunctionCallNode* func) {
         write(")");
     }
     else if (fname == "INT") {
+        needs_math_h = true;  // Ensure math.h is included
         write("floor(");
         if (!func->arguments.empty()) {
             generate_expression(func->arguments[0].get());
@@ -1322,11 +1538,11 @@ void CodeGenerator::generate_function_call(const FunctionCallNode* func) {
     
     // File functions
     else if (fname == "EOF") {
-        write("feof(_file_handles[");
+        write("feof(_file_handles[(int)(");
         if (!func->arguments.empty()) {
             generate_expression(func->arguments[0].get());
         }
-        write("])");
+        write(")])");
     }
     else if (fname == "LOF") {
         write("/* LOF not fully implemented */ 0");
@@ -1411,7 +1627,7 @@ void CodeGenerator::generate_expression(const ASTNode* expr, bool is_string_cont
         
         case NodeType::STRING: {
             const StringNode* str = static_cast<const StringNode*>(expr);
-            write("\"" + str->value + "\"");
+            write("\"" + escape_string(str->value) + "\"");
             break;
         }
         
@@ -1443,10 +1659,8 @@ void CodeGenerator::generate_expression(const ASTNode* expr, bool is_string_cont
                 var_name += "_str";
             }
             
-            // Rename CY to rb_CY to avoid Windows conflict
-            if (needs_sdl && var_name == "CY") {
-                var_name = "rb_CY";
-            }
+            // Sanitize variable name to avoid C/Windows conflicts
+            var_name = sanitize_varname(var_name);
             
             write(var_name);
             break;
@@ -1461,6 +1675,9 @@ void CodeGenerator::generate_expression(const ASTNode* expr, bool is_string_cont
                 arr_name.pop_back();
                 arr_name += "_str";
             }
+            
+            // Sanitize array name to avoid C/Windows conflicts
+            arr_name = sanitize_varname(arr_name);
             
             write(arr_name);
             for (const auto& idx : arr->indices) {
@@ -1530,19 +1747,28 @@ void CodeGenerator::generate_expression(const ASTNode* expr, bool is_string_cont
                 generate_expression(binop->right.get());
             }
             else if (binop->op == "MOD") {
+                needs_math_h = true;  // fmod() requires math.h
                 write("fmod(");
                 generate_expression(binop->left.get());
                 write(", ");
                 generate_expression(binop->right.get());
                 write(")");
             }
+            else if (binop->op == "\\") {
+                // Integer division - cast to int, divide, result is int
+                write("(int)(");
+                generate_expression(binop->left.get());
+                write(") / (int)(");
+                generate_expression(binop->right.get());
+                write(")");
+            }
             else if (binop->op == "^") {
+                needs_math_h = true;  // pow() requires math.h
                 write("pow(");
                 generate_expression(binop->left.get());
                 write(", ");
                 generate_expression(binop->right.get());
                 write(")");
-                needs_math_h = true;
             }
             else if (binop->op == "<>") {
                 generate_expression(binop->left.get());
@@ -1620,7 +1846,16 @@ void CodeGenerator::generate_print_stmt(const PrintStmt* stmt) {
                 writeln("fprintf(_file_handles[" + std::to_string(stmt->file_number) + "], \" \");");
             }
         }
-        writeln("fprintf(_file_handles[" + std::to_string(stmt->file_number) + "], \"\\n\");");
+        
+        // Only print newline if the last expression doesn't have a semicolon
+        bool has_trailing_semicolon = false;
+        if (!stmt->use_semicolon.empty()) {
+            has_trailing_semicolon = stmt->use_semicolon.back();
+        }
+        
+        if (!has_trailing_semicolon) {
+            writeln("fprintf(_file_handles[" + std::to_string(stmt->file_number) + "], \"\\n\");");
+        }
         return;
     }
     
@@ -1685,7 +1920,17 @@ void CodeGenerator::generate_print_stmt(const PrintStmt* stmt) {
         }
     }
     
-    writeln("printf(\"\\n\");");
+    // Only print newline if the last expression doesn't have a semicolon
+    // Check if there's a semicolon after the last expression
+    bool has_trailing_semicolon = false;
+    if (!stmt->use_semicolon.empty()) {
+        // If use_semicolon has same size as expressions, last entry indicates trailing semicolon
+        has_trailing_semicolon = stmt->use_semicolon.back();
+    }
+    
+    if (!has_trailing_semicolon) {
+        writeln("printf(\"\\n\");");
+    }
     writeln("fflush(stdout);  // Ensure output appears immediately");
 }
 
@@ -1707,6 +1952,9 @@ void CodeGenerator::generate_let_stmt(const LetStmt* stmt) {
             arr_name.pop_back();
             arr_name += "_str";
         }
+        
+        // Sanitize array name
+        arr_name = sanitize_varname(arr_name);
         
         if (is_string) {
             // String array: strcpy(arr[i], value)
@@ -1733,15 +1981,14 @@ void CodeGenerator::generate_let_stmt(const LetStmt* stmt) {
         }
     } else {
         // Simple variable assignment
+        // Sanitize variable name
+        var_name = sanitize_varname(var_name);
+        
         if (is_string) {
             write(get_indent() + "strcpy(" + var_name + ", ");
             generate_expression(stmt->expression.get(), true);
             write(");\n");
         } else {
-            // Rename CY to rb_CY to avoid Windows conflict
-            if (needs_sdl && var_name == "CY") {
-                var_name = "rb_CY";
-            }
             write(get_indent() + var_name + " = ");
             generate_expression(stmt->expression.get());
             write(";\n");
@@ -1814,11 +2061,8 @@ void CodeGenerator::generate_for_stmt(const ForStmt* stmt) {
     
     numeric_variables.insert(var);
     
-    // Rename CY to rb_CY to avoid Windows conflict
-    std::string c_var = var;
-    if (needs_sdl && var == "CY") {
-        c_var = "rb_CY";
-    }
+    // Sanitize variable name to avoid C/Windows conflicts
+    std::string c_var = sanitize_varname(var);
     
     write(get_indent() + "for (" + c_var + " = ");
     generate_expression(stmt->start.get());
@@ -1852,18 +2096,18 @@ void CodeGenerator::generate_for_stmt(const ForStmt* stmt) {
         generate_statement(body_stmt.get());
     }
     
+    // Decrement indent to get back outside the FOR body
+    indent_level--;
+    
     // Generate label for NEXT if it has a line number
     // BUT only if it's different from the FOR's line number (to avoid duplicates)
     if (stmt->next_line_num > 0 && stmt->next_line_num != stmt->line_number) {
         auto it = line_labels.find(stmt->next_line_num);
         if (it != line_labels.end()) {
-            indent_level--;
             writeln("L" + std::to_string(it->second) + ":;");
-            indent_level++;
         }
     }
     
-    indent_level--;
     writeln("}");
 }
 
@@ -1965,10 +2209,8 @@ void CodeGenerator::generate_input_stmt(const InputStmt* stmt) {
                 var_name += "_str";
             }
             
-            // Rename CY to rb_CY to avoid Windows conflict
-            if (needs_sdl && var_name == "CY") {
-                var_name = "rb_CY";
-            }
+            // Sanitize variable name to avoid C/Windows conflicts
+            var_name = sanitize_varname(var_name);
             
             if (is_string) {
                 writeln("fscanf(_file_handles[" + std::to_string(stmt->file_number) + 
@@ -1983,7 +2225,7 @@ void CodeGenerator::generate_input_stmt(const InputStmt* stmt) {
     
     // Console input
     if (!stmt->prompt.empty()) {
-        writeln("printf(\"%s\", \"" + stmt->prompt + "\");");
+        writeln("printf(\"%s\", \"" + escape_string(stmt->prompt) + "\");");
         writeln("fflush(stdout);  // Ensure prompt displays immediately");
     }
     
@@ -1996,10 +2238,8 @@ void CodeGenerator::generate_input_stmt(const InputStmt* stmt) {
             var_name += "_str";
         }
         
-        // Rename CY to rb_CY to avoid Windows conflict
-        if (needs_sdl && var_name == "CY") {
-            var_name = "rb_CY";
-        }
+        // Sanitize variable name to avoid C/Windows conflicts
+        var_name = sanitize_varname(var_name);
         
         if (is_string) {
             // For string input, use fgets to read full line (not just one word)
@@ -2018,7 +2258,7 @@ void CodeGenerator::generate_input_stmt(const InputStmt* stmt) {
 
 void CodeGenerator::generate_line_input_stmt(const LineInputStmt* stmt) {
     if (!stmt->prompt.empty()) {
-        writeln("printf(\"%s\", \"" + stmt->prompt + "\");");
+        writeln("printf(\"%s\", \"" + escape_string(stmt->prompt) + "\");");
         writeln("fflush(stdout);  // Ensure prompt displays immediately");
     }
     
@@ -2027,6 +2267,9 @@ void CodeGenerator::generate_line_input_stmt(const LineInputStmt* stmt) {
         var_name.pop_back();
         var_name += "_str";
     }
+    
+    // Sanitize variable name to avoid C/Windows conflicts
+    var_name = sanitize_varname(var_name);
     
     if (stmt->file_number > 0) {
         // Read from file
@@ -2051,6 +2294,9 @@ void CodeGenerator::generate_read_stmt(const ReadStmt* stmt) {
             var_name.pop_back();
             var_name += "_str";
         }
+        
+        // Sanitize variable name to avoid C/Windows conflicts
+        var_name = sanitize_varname(var_name);
         
         writeln("if (_data_index < _data_count) {");
         indent_level++;
@@ -2094,9 +2340,73 @@ void CodeGenerator::generate_restore_stmt(const RestoreStmt* /* stmt */) {
     writeln("_data_index = 0;");
 }
 
-void CodeGenerator::generate_dim_stmt(const DimStmt* /* stmt */) {
-    // Arrays are already declared globally
-    // This statement is essentially a no-op in the generated code
+void CodeGenerator::generate_dim_stmt(const DimStmt* stmt) {
+    // Generate runtime allocation for dynamic arrays
+    for (const auto& array_decl : stmt->arrays) {
+        std::string arr_name = array_decl.name;
+        
+        // Check if this array is dynamic
+        auto it = arrays.find(arr_name);
+        bool is_string_array = false;
+        bool is_dynamic = false;
+        
+        if (it != arrays.end()) {
+            is_dynamic = it->second.is_dynamic;
+        } else {
+            // Check string arrays
+            auto sit = string_arrays.find(arr_name);
+            if (sit != string_arrays.end()) {
+                is_dynamic = sit->second.is_dynamic;
+                is_string_array = true;
+            }
+        }
+        
+        if (is_dynamic) {
+            // Generate dynamic allocation code
+            writeln(get_indent() + "{");
+            indent_level++;
+            
+            // Calculate total size
+            write(get_indent() + "int _size = 1;");
+            writeln("");
+            
+            for (const auto& dim_expr : array_decl.dimension_exprs) {
+                write(get_indent() + "_size *= ((int)");
+                generate_expression(dim_expr.get());
+                write(" + 1);");
+                writeln("");
+            }
+            
+            if (is_string_array) {
+                // Allocate string array
+                std::string c_name = arr_name;
+                if (!c_name.empty() && c_name.back() == '$') {
+                    c_name.pop_back();
+                    c_name += "_str";
+                }
+                // Sanitize array name
+                c_name = sanitize_varname(c_name);
+                writeln(get_indent() + c_name + " = (char (*)[256])calloc(_size, 256);");
+                writeln(get_indent() + "if (!" + c_name + ") {");
+                writeln(get_indent() + "    fprintf(stderr, \"Out of memory allocating array " + arr_name + "\\n\");");
+                writeln(get_indent() + "    exit(1);");
+                writeln(get_indent() + "}");
+            } else {
+                // Allocate numeric array
+                // Sanitize array name
+                std::string c_name = sanitize_varname(arr_name);
+                writeln(get_indent() + c_name + " = (double*)calloc(_size, sizeof(double));");
+                writeln(get_indent() + "if (!" + c_name + ") {");
+                writeln(get_indent() + "    fprintf(stderr, \"Out of memory allocating array " + arr_name + "\\n\");");
+                writeln(get_indent() + "    exit(1);");
+                writeln(get_indent() + "}");
+            }
+            
+            indent_level--;
+            writeln(get_indent() + "}");
+        }
+        // Static arrays don't need runtime initialization
+    }
 }
 
 void CodeGenerator::generate_open_stmt(const OpenStmt* stmt) {
@@ -2107,8 +2417,29 @@ void CodeGenerator::generate_open_stmt(const OpenStmt* stmt) {
         mode = "a";
     }
     
-    writeln("_file_handles[" + std::to_string(stmt->file_number) + "] = fopen(\"" + 
-            stmt->filename + "\", \"" + mode + "\");");
+    // Generate the filename expression
+    write(get_indent() + "_file_handles[" + std::to_string(stmt->file_number) + "] = fopen(");
+    
+    // Check if filename is a string literal or variable/expression
+    if (stmt->filename->type == NodeType::STRING) {
+        // Direct string literal - use escape_string helper
+        const StringNode* str = static_cast<const StringNode*>(stmt->filename.get());
+        write("\"" + escape_string(str->value) + "\"");
+    } else if (stmt->filename->type == NodeType::VARIABLE) {
+        // String variable (must end with $)
+        const VariableNode* var = static_cast<const VariableNode*>(stmt->filename.get());
+        std::string var_name = var->name;
+        if (!var_name.empty() && var_name.back() == '$') {
+            var_name.pop_back();  // Remove the $ for C variable name
+            var_name += "_str";   // Add _str suffix for C string variables
+        }
+        write(var_name);
+    } else {
+        // General expression - generate it
+        generate_expression(stmt->filename.get(), true);
+    }
+    
+    write(", \"" + mode + "\");\n");
 }
 
 void CodeGenerator::generate_close_stmt(const CloseStmt* stmt) {
@@ -2343,6 +2674,17 @@ void CodeGenerator::generate_on_gosub_stmt(const OnGosubStmt* stmt) {
 // ============== GRAPHICS STATEMENT GENERATORS ==============
 
 void CodeGenerator::generate_screen_stmt(const ScreenStmt* stmt) {
+    // Check if this is SCREEN 0 (text mode)
+    if (stmt->mode && stmt->mode->type == NodeType::NUMBER) {
+        const NumberNode* num = static_cast<const NumberNode*>(stmt->mode.get());
+        if (num->value == 0) {
+            // SCREEN 0 is text mode - just a comment, no graphics initialization
+            writeln("// SCREEN 0 - Text mode (no action needed)");
+            return;
+        }
+    }
+    
+    // Graphics mode (SCREEN 1-13)
     needs_sdl = true;
     
     write(get_indent() + "init_graphics((int)(");
@@ -2551,12 +2893,17 @@ void CodeGenerator::generate_play_stmt(const PlayStmt* stmt) {
 
 
 void CodeGenerator::generate_statement(const Statement* stmt) {
+    // Generate line label if this statement has one
     if (stmt->line_num > 0) {
         auto it = line_labels.find(stmt->line_num);
         if (it != line_labels.end()) {
-            if (indent_level > 0) indent_level--;
+            // Temporarily outdent to write label at current level - 1
+            int saved_indent = indent_level;
+            if (indent_level > 0) {
+                indent_level--;
+            }
             writeln("L" + std::to_string(it->second) + ":;");
-            if (indent_level < 2) indent_level++;
+            indent_level = saved_indent;  // Restore original indent
         }
     }
     

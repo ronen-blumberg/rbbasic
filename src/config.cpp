@@ -1,6 +1,7 @@
 #include "config.h"
 #include <algorithm>
 #include <iostream>
+#include <sys/stat.h>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -12,13 +13,14 @@
 
 RBConfig::RBConfig() {
     // Get the directory where rbbasic.exe is located
-    char buffer[MAX_PATH];
     #ifdef _WIN32
+    char buffer[MAX_PATH];
     GetModuleFileNameA(NULL, buffer, MAX_PATH);
     std::string exe_path(buffer);
     size_t pos = exe_path.find_last_of("\\/");
     config_dir = exe_path.substr(0, pos);
     #else
+    char buffer[4096];
     getcwd(buffer, sizeof(buffer));
     config_dir = buffer;
     #endif
@@ -191,11 +193,20 @@ bool RBConfig::validate_paths() {
     
     // Check if SDL2 include directory exists
     std::string sdl_inc = get_sdl2_include_path();
+    #ifdef _WIN32
     DWORD attribs = GetFileAttributesA(sdl_inc.c_str());
     if (attribs == INVALID_FILE_ATTRIBUTES || !(attribs & FILE_ATTRIBUTE_DIRECTORY)) {
         std::cerr << "Warning: SDL2 include path not found: " << sdl_inc << std::endl;
         std::cerr << "         Graphics features may not work." << std::endl;
     }
+    #else
+    // On Linux, just check if directory exists
+    struct stat sb;
+    if (stat(sdl_inc.c_str(), &sb) != 0 || !S_ISDIR(sb.st_mode)) {
+        std::cerr << "Warning: SDL2 include path not found: " << sdl_inc << std::endl;
+        std::cerr << "         Graphics features may not work." << std::endl;
+    }
+    #endif
     
     return all_valid;
 }

@@ -11,9 +11,7 @@
 110   PSET (X, Y), C
 120 NEXT I
 130 REM Small delay
-140 FOR D = 1 TO 1000
-150   FOR J = 1 TO 500: NEXT J
-160 NEXT D
+140 SLEEP 3
 170 CLS
 180 REM Section 2: Random lines
 190 FOR I = 1 TO 20
@@ -25,9 +23,7 @@
 250   LINE (X1, Y1)-(X2, Y2), C
 260 NEXT I
 270 REM Small delay
-280 FOR D = 1 TO 1000
-290   FOR J = 1 TO 500: NEXT J
-300 NEXT D
+280 SLEEP 3
 310 CLS
 320 REM Section 3: Random circles
 330 FOR I = 1 TO 15
@@ -38,9 +34,7 @@
 380   CIRCLE (X, Y), R, C
 390 NEXT I
 400 REM Small delay
-410 FOR D = 1 TO 1000
-420   FOR J = 1 TO 500: NEXT J
-430 NEXT D
+410 SLEEP 3
 440 CLS
 450 REM Section 4: Boxes
 460 FOR I = 1 TO 10
@@ -52,9 +46,7 @@
 520   LINE (X1, Y1)-(X2, Y2), C, B
 530 NEXT I
 540 REM Small delay
-550 FOR D = 1 TO 1000
-560   FOR J = 1 TO 500: NEXT J
-570 NEXT D
+550 SLEEP 3
 580 CLS
 590 REM Section 5: Filled boxes
 600 FOR I = 1 TO 10
@@ -66,9 +58,7 @@
 660   LINE (X1, Y1)-(X2, Y2), C, BF
 670 NEXT I
 680 REM Small delay
-690 FOR D = 1 TO 1000
-700   FOR J = 1 TO 500: NEXT J
-710 NEXT D
+690 SLEEP 3
 720 CLS
 730 REM Section 6: Simple animation - bouncing ball
 740 X = 320
@@ -87,7 +77,7 @@
 870   REM Draw new circle
 880   CIRCLE (X, Y), 20, 14
 890   REM Small delay
-900   FOR D = 1 TO 500: NEXT D
+900   SLEEP 0.05
 910 NEXT I
 920 REM End - close graphics and return to text mode
 930 SCREEN 0

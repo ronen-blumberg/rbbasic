@@ -1,5 +1,4 @@
 @echo off
-setlocal EnableDelayedExpansion
 REM ============================================================================
 REM RBIDE Build Script
 REM RB BASIC (Ronen Blumberg Basic) Integrated Development Environment
@@ -13,9 +12,9 @@ echo.
 
 REM Get the parent directory (rbbasic-portable root)
 set RBBASIC_ROOT=%~dp0..
-pushd "%RBBASIC_ROOT%" >nul 2>&1
+pushd "%RBBASIC_ROOT%"
 set RBBASIC_ROOT=%CD%
-popd >nul 2>&1
+popd
 
 echo RB BASIC Root: %RBBASIC_ROOT%
 echo.
@@ -34,60 +33,47 @@ if not exist "%CONFIG_FILE%" (
 echo [OK] Found rbc.config
 echo.
 
-REM Read MinGW path from rbc.config (INI format with [Paths] section)
+REM Read MinGW path from rbc.config
 echo Reading MinGW configuration...
-
-REM Use findstr to extract the MinGW32Path line and parse it
-for /f "tokens=2 delims==" %%a in ('findstr /i "^MinGW32Path=" "%CONFIG_FILE%"') do (
-    set MINGW_PATH=%%a
+set MINGW_PATH=
+for /f "usebackq tokens=1,* delims==" %%a in ("%CONFIG_FILE%") do (
+    if /i "%%a"=="MINGW_PATH" set MINGW_PATH=%%b
 )
 
-REM Trim any spaces
-if defined MINGW_PATH (
-    set MINGW_PATH=!MINGW_PATH: =!
-)
+REM Remove quotes and trim whitespace if present
+set MINGW_PATH=%MINGW_PATH:"=%
+set MINGW_PATH=%MINGW_PATH: =%
 
-if "!MINGW_PATH!"=="" (
-    echo ERROR: MinGW32Path not found in rbc.config!
+if "%MINGW_PATH%"=="" (
+    echo ERROR: MINGW_PATH not found in rbc.config!
     echo.
-    echo Expected format in [Paths] section:
-    echo   MinGW32Path=mingw32
-    echo.
-    echo Please check your rbc.config file has a line like:
-    echo   MinGW32Path=mingw32
-    echo.
+    echo Expected line in config: MINGW_PATH=mingw32
     pause
     exit /b 1
 )
 
-echo MinGW32Path from config: !MINGW_PATH!
-
 REM Construct full MinGW path
-set MINGW=%RBBASIC_ROOT%\!MINGW_PATH!
-set GCC=!MINGW!\bin\g++.exe
-set WINDRES=!MINGW!\bin\windres.exe
+set MINGW=%RBBASIC_ROOT%\%MINGW_PATH%
+set GCC=%MINGW%\bin\g++.exe
+set WINDRES=%MINGW%\bin\windres.exe
 
-echo MinGW Full Path: !MINGW!
+echo MinGW folder: %MINGW%
 echo.
 
 REM Check for MinGW32
-if not exist "!GCC!" (
+if not exist "%GCC%" (
     echo ERROR: MinGW32 compiler not found!
-    echo Expected: !GCC!
+    echo Expected: %GCC%
     echo.
-    echo The rbc.config specifies: MinGW32Path=!MINGW_PATH!
+    echo The rbc.config specifies: MINGW_PATH=%MINGW_PATH%
     echo But the compiler was not found at that location.
     echo.
-    echo Please check:
-    echo   1. rbc.config has correct MinGW32Path in [Paths] section
-    echo   2. MinGW is installed in specified location
-    echo   3. g++.exe exists in bin subfolder
-    echo.
+    echo Please check your rbc.config file.
     pause
     exit /b 1
 )
 
-echo [OK] MinGW32 found at: !MINGW!
+echo [OK] MinGW32 found at: %MINGW%
 echo.
 
 REM Create obj directory if it doesn't exist
@@ -95,47 +81,56 @@ if not exist obj mkdir obj
 
 REM Clean old builds
 echo Cleaning old build files...
-if exist obj\*.o del /Q obj\*.o 2>nul
-if exist obj\*.res del /Q obj\*.res 2>nul
-if exist rbide.exe del /Q rbide.exe 2>nul
+del /Q obj\*.o 2>nul
+del /Q obj\*.res 2>nul
+del /Q rbide.exe 2>nul
 
 echo.
 echo Compiling source files...
 echo.
 
 REM Compile resource file (skip if windres or icon is missing)
-set RESOURCE_OBJ=
 if exist res\rbide.ico (
-    if exist "!WINDRES!" (
+    if exist "%WINDRES%" (
         echo   - Compiling resources...
-        "!WINDRES!" res\resource.rc -O coff -o obj\resource.res
+        "%WINDRES%" res\resource.rc -O coff -o obj\resource.res
         if errorlevel 1 (
             echo     WARNING: Resource compilation failed, continuing without icon
+            set RESOURCE_OBJ=
         ) else (
             set RESOURCE_OBJ=obj\resource.res
         )
     ) else (
         echo   - Skipping resources (windres not found)
+        set RESOURCE_OBJ=
     )
 ) else (
     echo   - Skipping resources (no icon file found)
+    set RESOURCE_OBJ=
 )
 
 REM Compile main.cpp
 echo   - Compiling main.cpp...
-"!GCC!" -c src\main.cpp -o obj\main.o -std=c++17 -O2 -Wall
+"%GCC%" -c src\main.cpp -o obj\main.o ^
+    -std=c++17 -O2 -Wall
 if errorlevel 1 goto :build_failed
 
 REM Compile mainwindow.cpp
 echo   - Compiling mainwindow.cpp...
-"!GCC!" -c src\mainwindow.cpp -o obj\mainwindow.o -std=c++17 -O2 -Wall -Ilib\scintilla\include
+"%GCC%" -c src\mainwindow.cpp -o obj\mainwindow.o ^
+    -std=c++17 -O2 -Wall ^
+    -Ilib\scintilla\include
 if errorlevel 1 goto :build_failed
 
 echo.
 echo Linking...
 
 REM Link all together
-"!GCC!" obj\main.o obj\mainwindow.o !RESOURCE_OBJ! -o rbide.exe -mwindows -static-libgcc -static-libstdc++ -lcomctl32 -lcomdlg32 -luser32 -lgdi32 -lshell32 -lshlwapi -s
+"%GCC%" obj\main.o obj\mainwindow.o %RESOURCE_OBJ% ^
+    -o rbide.exe ^
+    -mwindows -static-libgcc -static-libstdc++ ^
+    -lcomctl32 -lcomdlg32 -luser32 -lgdi32 -lshell32 -lshlwapi ^
+    -s
 
 if errorlevel 1 goto :build_failed
 
@@ -164,7 +159,7 @@ if exist rbide.exe (
     echo   1. Download and place SciLexer.dll here
     echo   2. Run: rbide.exe
     echo   3. Open a .BAS file
-    echo   4. Try F5 to Compile and Run
+    echo   4. Try F5 to Compile ^& Run
     echo.
 ) else (
     echo WARNING: rbide.exe not found after build!
@@ -180,11 +175,6 @@ echo Build FAILED!
 echo ============================================================================
 echo.
 echo Check the error messages above.
-echo.
-echo Common issues:
-echo   - Source files not in src\ folder
-echo   - Missing header files
-echo   - Syntax errors in code
 echo.
 pause
 exit /b 1

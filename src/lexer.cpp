@@ -303,6 +303,10 @@ std::vector<Token> Lexer::tokenize() {
                 tokens.push_back(Token(TokenType::DIVIDE, "/", line, start_col));
                 advance();
                 break;
+            case '\\':
+                tokens.push_back(Token(TokenType::INTDIV, "\\", line, start_col));
+                advance();
+                break;
             case '^':
                 tokens.push_back(Token(TokenType::POWER, "^", line, start_col));
                 advance();

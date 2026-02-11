@@ -1,272 +1,145 @@
-// mainwindow.cpp - Complete working version with config reader
-// RB BASIC IDE - Portable Edition
-// Reads rbc.config to find compiler paths automatically
+// mainwindow.cpp - Main Window Implementation
+// RB BASIC (Ronen Blumberg Basic) IDE Main Window with QBASIC-style syntax highlighting
+// Copyright (c) 2025 Ronen Blumberg
 
 #include "mainwindow.h"
 #include "resource.h"
+#include <windows.h>
 #include <commctrl.h>
 #include <commdlg.h>
+#include <shlwapi.h>
 #include <fstream>
 #include <sstream>
-#include <map>
+#include <algorithm>
+#include <vector>
+#include <set>
 
-#define RBIDE_CLASS_NAME "RBIDEMainWindow"
-#define SPLITTER_HEIGHT 6
-#define OUTPUT_MIN_HEIGHT 100
-#define OUTPUT_DEFAULT_HEIGHT 150
+// These libraries are linked via build.bat command line instead
+// (MinGW doesn't support #pragma comment)
+
+// Scintilla message definitions
+#define SCI_SETLEXER 4001
+#define SCI_STYLESETFORE 2051
+#define SCI_STYLESETBACK 2052
+#define SCI_STYLESETBOLD 2053
+#define SCI_STYLESETSIZE 2055
+#define SCI_STYLESETFONT 2056
+#define SCI_SETTEXT 2181
+#define SCI_GETTEXT 2182
+#define SCI_GETTEXTLENGTH 2183
+#define SCI_SETMARGINWIDTHN 2242
+#define SCI_SETMARGINTYPEN 2240
+#define SCI_SETSELFORE 2067
+#define SCI_SETSELBACK 2068
+#define SCI_SETCARETFORE 2069
+#define SCI_STYLECLEARALL 2050
+#define SCI_SETKEYWORDS 4005
+#define SCI_SETPROPERTY 4004
+#define SCI_GETMODIFY 2159
+#define SCI_SETSAVEPOINT 2014
+#define SCI_UNDO 2176
+#define SCI_REDO 2011
+#define SCI_CANUNDO 2174
+#define SCI_CANREDO 2016
+#define SCI_CUT 2177
+#define SCI_COPY 2178
+#define SCI_PASTE 2179
+#define SCI_SELECTALL 2013
+#define SCI_EMPTYUNDOBUFFER 2175
+#define SCI_GETDIRECTFUNCTION 2184
+#define SCI_GETDIRECTPOINTER 2185
+#define SCI_SETSEL 2160
+#define SCI_GETCURRENTPOS 2008
+#define SCI_LINEFROMPOSITION 2166
+#define SCI_POSITIONFROMLINE 2167
+#define SCI_GETLINEENDPOSITION 2136
+#define SCI_INSERTTEXT 2003
+#define SCI_GETLINE 2153
+
+#define SCLEX_NULL 0
+#define SCLEX_FREEBASIC 75
+
+#define SC_MARGIN_NUMBER 0
+#define STYLE_DEFAULT 32
+#define STYLE_LINENUMBER 33
+
+// QBASIC color scheme (retro 1980s/90s style)
+#define COLOR_QBASIC_BACKGROUND RGB(0, 0, 170)      // Classic blue background
+#define COLOR_QBASIC_TEXT RGB(255, 255, 85)         // Bright yellow text
+#define COLOR_QBASIC_KEYWORD RGB(85, 255, 255)      // Cyan keywords
+#define COLOR_QBASIC_STRING RGB(255, 85, 255)       // Magenta strings
+#define COLOR_QBASIC_COMMENT RGB(85, 255, 85)       // Bright green comments
+#define COLOR_QBASIC_NUMBER RGB(255, 255, 255)      // White numbers
+#define COLOR_QBASIC_OPERATOR RGB(255, 255, 255)    // White operators
+#define COLOR_QBASIC_LINENUMBER RGB(170, 170, 170)  // Gray line numbers
+#define COLOR_QBASIC_SELECTION RGB(255, 255, 255)   // White selection
+#define COLOR_QBASIC_SELBACK RGB(0, 0, 128)         // Dark blue selection background
+
+// GWBASIC/QBASIC keywords
+const char* BASIC_KEYWORDS = 
+    "ABS ACCESS ALIAS AND ANY APPEND AS ASC ATN "
+    "BASE BEEP BINARY BLOAD BSAVE "
+    "CALL CALLS CASE CDBL CDECL CHAIN CHDIR CHR$ CINT CIRCLE CLEAR CLNG CLOSE CLS "
+    "COLOR COM COMMAND$ COMMON CONST COS CSNG CSRLIN CVD CVDMBF CVI CVL CVS CVSMBF "
+    "DATA DATE$ DECLARE DEF DEFDBL DEFINT DEFLNG DEFSNG DEFSTR DELETE DIM DO DOUBLE DRAW "
+    "ELSE ELSEIF END ENVIRON ENVIRON$ EOF EQV ERASE ERDEV ERDEV$ ERL ERR ERROR EXIT EXP "
+    "FIELD FILES FIX FOR FRE FREEFILE FUNCTION "
+    "GET GOSUB GOTO "
+    "HEX$ "
+    "IF IMP INKEY$ INP INPUT INPUT$ INSTR INT INTEGER IOCTL IOCTL$ IS "
+    "KEY KILL "
+    "LBOUND LCASE$ LEFT$ LEN LET LINE LIST LOC LOCAL LOCATE LOCK LOF LOG LONG LOOP LPOS LPRINT LSET LTRIM$ "
+    "MID$ MKD$ MKDMBF$ MKI$ MKL$ MKS$ MKSMBF$ MOD "
+    "NAME NEXT NOT "
+    "OCT$ OFF ON OPEN OPTION OR OUT OUTPUT "
+    "PAINT PALETTE PCOPY PEEK PEN PLAY PMAP POINT POKE POS PRESET PRINT PSET PUT "
+    "RANDOM RANDOMIZE READ REDIM REM RESET RESTORE RESUME RETURN RIGHT$ RMDIR RND RSET RTRIM$ RUN "
+    "SADD SCREEN SEEK SEG SELECT SETMEM SGN SHARED SHELL SIN SINGLE SLEEP SOUND SPACE$ SPC SQR "
+    "STATIC STEP STICK STOP STR$ STRING STRING$ SUB SWAP SYSTEM "
+    "TAB TAN THEN TIME$ TIMER TO TROFF TRON TYPE "
+    "UBOUND UCASE$ UEVENT UNLOCK UNTIL USING "
+    "VAL VARPTR VARPTR$ VARSEG VIEW "
+    "WAIT WEND WHILE WIDTH WINDOW WRITE "
+    "XOR";
 
 extern HINSTANCE g_hInstance;
 
-// ========================================================================
-// CONFIG FILE HELPER FUNCTIONS
-// ========================================================================
-
-// Simple INI file reader
-std::string ReadConfigValue(const std::string& filepath, const std::string& section, const std::string& key) {
-    std::ifstream file(filepath);
-    if (!file) return "";
-    
-    std::string line;
-    bool inSection = false;
-    std::string targetSection = "[" + section + "]";
-    
-    while (std::getline(file, line)) {
-        // Trim whitespace
-        size_t start = line.find_first_not_of(" \t\r\n");
-        size_t end = line.find_last_not_of(" \t\r\n");
-        if (start == std::string::npos) continue;
-        line = line.substr(start, end - start + 1);
-        
-        // Skip empty lines and comments
-        if (line.empty() || line[0] == ';' || line[0] == '#') continue;
-        
-        // Check for section header
-        if (line[0] == '[') {
-            inSection = (line == targetSection);
-            continue;
-        }
-        
-        // If we're in the right section, look for the key
-        if (inSection) {
-            size_t pos = line.find('=');
-            if (pos != std::string::npos) {
-                std::string fileKey = line.substr(0, pos);
-                // Trim key
-                size_t keyEnd = fileKey.find_last_not_of(" \t");
-                if (keyEnd != std::string::npos) {
-                    fileKey = fileKey.substr(0, keyEnd + 1);
-                }
-                
-                if (fileKey == key) {
-                    std::string value = line.substr(pos + 1);
-                    // Trim value
-                    size_t valStart = value.find_first_not_of(" \t");
-                    if (valStart != std::string::npos) {
-                        value = value.substr(valStart);
-                    }
-                    return value;
-                }
-            }
-        }
-    }
-    
-    return "";
-}
-
-// Find rbbasic.exe using rbc.config
-std::string FindRBBasicCompiler() {
-    // Get the directory where RBIDE.exe is located
-    char exePath[MAX_PATH];
-    GetModuleFileName(NULL, exePath, MAX_PATH);
-    
-    std::string exeDir = exePath;
-    size_t pos = exeDir.find_last_of("\\/");
-    if (pos != std::string::npos) {
-        exeDir = exeDir.substr(0, pos);
-    }
-    
-    // Look for rbc.config in the parent directory (rbbasic-portable folder)
-    std::string configPath = exeDir + "\\..\\rbc.config";
-    
-    // Try to read CompilerRoot from config
-    std::string compilerRoot = ReadConfigValue(configPath, "Paths", "CompilerRoot");
-    
-    if (compilerRoot.empty() || compilerRoot == ".") {
-        // Config not found or root is current directory
-        // Assume rbbasic.exe is in parent directory of RBIDE
-        return exeDir + "\\..\\rbbasic.exe";
-    }
-    
-    // If compilerRoot is relative, make it relative to config file location
-    if (compilerRoot[0] != '\\' && (compilerRoot.length() < 2 || compilerRoot[1] != ':')) {
-        // Relative path
-        compilerRoot = exeDir + "\\..\\" + compilerRoot;
-    }
-    
-    return compilerRoot + "\\rbbasic.exe";
-}
-
-// Get MinGW path from config
-std::string GetMinGWPath() {
-    char exePath[MAX_PATH];
-    GetModuleFileName(NULL, exePath, MAX_PATH);
-    
-    std::string exeDir = exePath;
-    size_t pos = exeDir.find_last_of("\\/");
-    if (pos != std::string::npos) {
-        exeDir = exeDir.substr(0, pos);
-    }
-    
-    std::string configPath = exeDir + "\\..\\rbc.config";
-    std::string mingwPath = ReadConfigValue(configPath, "Paths", "MinGW32Path");
-    
-    if (mingwPath.empty()) {
-        return exeDir + "\\..\\mingw32";
-    }
-    
-    // If relative path, make it relative to rbbasic-portable
-    if (mingwPath[0] != '\\' && (mingwPath.length() < 2 || mingwPath[1] != ':')) {
-        return exeDir + "\\..\\" + mingwPath;
-    }
-    
-    return mingwPath;
-}
-
-// Get directory from full path
-std::string GetDirectory(const std::string& filepath) {
-    size_t pos = filepath.find_last_of("\\/");
-    if (pos != std::string::npos) {
-        return filepath.substr(0, pos);
-    }
-    return ".";
-}
-
-// Helper to capture process output
-bool RunProcessWithOutput(const char* cmdLine, const char* workingDir, std::string& output) {
-    SECURITY_ATTRIBUTES sa;
-    sa.nLength = sizeof(SECURITY_ATTRIBUTES);
-    sa.bInheritHandle = TRUE;
-    sa.lpSecurityDescriptor = NULL;
-    
-    HANDLE hReadPipe, hWritePipe;
-    if (!CreatePipe(&hReadPipe, &hWritePipe, &sa, 0)) {
-        return false;
-    }
-    
-    SetHandleInformation(hReadPipe, HANDLE_FLAG_INHERIT, 0);
-    
-    STARTUPINFO si = {sizeof(si)};
-    si.dwFlags = STARTF_USESHOWWINDOW | STARTF_USESTDHANDLES;
-    si.wShowWindow = SW_HIDE;
-    si.hStdOutput = hWritePipe;
-    si.hStdError = hWritePipe;
-    
-    PROCESS_INFORMATION pi;
-    char* cmdLineCopy = _strdup(cmdLine);
-    bool success = CreateProcess(NULL, cmdLineCopy, NULL, NULL, TRUE,
-                                  CREATE_NO_WINDOW, NULL, workingDir, &si, &pi);
-    free(cmdLineCopy);
-    
-    if (!success) {
-        CloseHandle(hReadPipe);
-        CloseHandle(hWritePipe);
-        return false;
-    }
-    
-    CloseHandle(hWritePipe);
-    
-    char buffer[4096];
-    DWORD bytesRead;
-    output.clear();
-    
-    while (ReadFile(hReadPipe, buffer, sizeof(buffer) - 1, &bytesRead, NULL) && bytesRead > 0) {
-        buffer[bytesRead] = '\0';
-        output += buffer;
-    }
-    
-    WaitForSingleObject(pi.hProcess, INFINITE);
-    DWORD exitCode;
-    GetExitCodeProcess(pi.hProcess, &exitCode);
-    
-    CloseHandle(pi.hProcess);
-    CloseHandle(pi.hThread);
-    CloseHandle(hReadPipe);
-    
-    return (exitCode == 0);
-}
-
-// ========================================================================
-// MAINWINDOW CLASS IMPLEMENTATION
-// ========================================================================
-
+// Constructor
 MainWindow::MainWindow() 
-    : m_hwnd(NULL), m_hwndEdit(NULL), m_hwndOutput(NULL), 
-      m_hwndStatus(NULL), m_hwndSplitter(NULL),
-      m_hInstance(NULL), m_hScintilla(NULL),
-      m_modified(false), m_outputVisible(true),
-      m_splitterPos(OUTPUT_DEFAULT_HEIGHT),
-      m_pScintilla(0), m_fnScintilla(NULL),
-	  m_hAccel(NULL)  // ADD THIS
+    : m_hwnd(NULL)
+    , m_hwndEdit(NULL)
+    , m_hwndOutput(NULL)
+    , m_hwndStatus(NULL)
+    , m_hwndSplitter(NULL)
+    , m_hInstance(NULL)
+    , m_hScintilla(NULL)
+    , m_hAccel(NULL)
+    , m_modified(false)
+    , m_outputVisible(true)
+    , m_splitterPos(150)
+    , m_pScintilla(0)
+    , m_fnScintilla(NULL)
 {
-    m_currentFile = "";
 }
 
+// Destructor
 MainWindow::~MainWindow() {
-}
-
-bool MainWindow::Create(HINSTANCE hInstance) {
-    m_hInstance = hInstance;
-    
-    WNDCLASSEX wc = {0};
-    wc.cbSize = sizeof(WNDCLASSEX);
-    wc.style = CS_HREDRAW | CS_VREDRAW;
-    wc.lpfnWndProc = MainWindow::WndProc;
-    wc.hInstance = hInstance;
-    wc.hCursor = LoadCursor(NULL, IDC_ARROW);
-    wc.hbrBackground = (HBRUSH)(COLOR_WINDOW);
-    wc.lpszClassName = RBIDE_CLASS_NAME;
-    wc.hIcon = LoadIcon(NULL, IDI_APPLICATION);
-    wc.hIconSm = LoadIcon(NULL, IDI_APPLICATION);
-    
-    if (!RegisterClassEx(&wc)) {
-        MessageBox(NULL, "Failed to register window class", "Error", MB_ICONERROR);
-        return false;
+    if (m_hScintilla) {
+        FreeLibrary(m_hScintilla);
     }
-    
-    m_hwnd = CreateWindowEx(
-        0, RBIDE_CLASS_NAME, "RBIDE - RB BASIC IDE",
-        WS_OVERLAPPEDWINDOW,
-        CW_USEDEFAULT, CW_USEDEFAULT, 1000, 700,
-        NULL, NULL, hInstance, this
-    );
-    
-    if (!m_hwnd) {
-        MessageBox(NULL, "Failed to create main window", "Error", MB_ICONERROR);
-        return false;
-    }
-    
-    return true;
 }
 
-void MainWindow::Show(int nCmdShow) {
-    ShowWindow(m_hwnd, nCmdShow);
-    UpdateWindow(m_hwnd);
-}
-
-bool MainWindow::InitScintilla() {
-    return true;
-}
-
+// Window procedure (static)
 LRESULT CALLBACK MainWindow::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     MainWindow* pThis = NULL;
     
-    if (msg == WM_CREATE) {
-        CREATESTRUCT* pCreate = reinterpret_cast<CREATESTRUCT*>(lParam);
-        pThis = reinterpret_cast<MainWindow*>(pCreate->lpCreateParams);
+    if (msg == WM_NCCREATE) {
+        CREATESTRUCT* pCreate = (CREATESTRUCT*)lParam;
+        pThis = (MainWindow*)pCreate->lpCreateParams;
         SetWindowLongPtr(hwnd, GWLP_USERDATA, (LONG_PTR)pThis);
         pThis->m_hwnd = hwnd;
     } else {
-        pThis = reinterpret_cast<MainWindow*>(GetWindowLongPtr(hwnd, GWLP_USERDATA));
+        pThis = (MainWindow*)GetWindowLongPtr(hwnd, GWLP_USERDATA);
     }
     
     if (pThis) {
@@ -276,13 +149,17 @@ LRESULT CALLBACK MainWindow::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM 
     return DefWindowProc(hwnd, msg, wParam, lParam);
 }
 
+// Message handler
 LRESULT MainWindow::HandleMessage(UINT msg, WPARAM wParam, LPARAM lParam) {
     switch (msg) {
         case WM_CREATE:
             CreateMenus();
+            if (!InitScintilla()) {
+                return -1;
+            }
             CreateControls();
             SetupEditor();
-            UpdateTitle();
+            InitAccelerators();
             return 0;
             
         case WM_SIZE:
@@ -290,11 +167,6 @@ LRESULT MainWindow::HandleMessage(UINT msg, WPARAM wParam, LPARAM lParam) {
             return 0;
             
         case WM_COMMAND:
-            if (HIWORD(wParam) == EN_CHANGE && (HWND)lParam == m_hwndEdit) {
-                m_modified = true;
-                UpdateTitle();
-                return 0;
-            }
             return HandleCommand(wParam, lParam);
             
         case WM_CLOSE:
@@ -311,103 +183,307 @@ LRESULT MainWindow::HandleMessage(UINT msg, WPARAM wParam, LPARAM lParam) {
     return DefWindowProc(m_hwnd, msg, wParam, lParam);
 }
 
+// Command handler
+LRESULT MainWindow::HandleCommand(WPARAM wParam, LPARAM lParam) {
+    switch (LOWORD(wParam)) {
+        // File menu
+        case IDM_FILE_NEW:
+            FileNew();
+            return 0;
+        case IDM_FILE_OPEN:
+            FileOpen();
+            return 0;
+        case IDM_FILE_SAVE:
+            FileSave();
+            return 0;
+        case IDM_FILE_SAVEAS:
+            FileSaveAs();
+            return 0;
+        case IDM_FILE_EXIT:
+            SendMessage(m_hwnd, WM_CLOSE, 0, 0);
+            return 0;
+            
+        // Edit menu
+        case IDM_EDIT_UNDO:
+            EditUndo();
+            return 0;
+        case IDM_EDIT_REDO:
+            EditRedo();
+            return 0;
+        case IDM_EDIT_CUT:
+            EditCut();
+            return 0;
+        case IDM_EDIT_COPY:
+            EditCopy();
+            return 0;
+        case IDM_EDIT_PASTE:
+            EditPaste();
+            return 0;
+        case IDM_EDIT_SELECTALL:
+            EditSelectAll();
+            return 0;
+        case IDM_EDIT_FIND:
+            EditFind();
+            return 0;
+        case IDM_EDIT_ADDLINE:
+            AddLineNumber();
+            return 0;
+        case IDM_EDIT_RENUMBER:
+            RenumberLines();
+            return 0;
+        case IDM_EDIT_REMOVENUMBERS:
+            RemoveLineNumbers();
+            return 0;
+            
+        // Run menu
+        case IDM_RUN_COMPILE:
+            RunCompile();
+            return 0;
+        case IDM_RUN_RUN:
+            RunProgram();
+            return 0;
+        case IDM_RUN_COMPILERUN:
+            RunCompileAndRun();
+            return 0;
+        case IDM_RUN_STOP:
+            StopProgram();
+            return 0;
+            
+        // Help menu
+        case IDM_HELP_ABOUT:
+            MessageBox(m_hwnd, 
+                "RB BASIC IDE v1.0\n\n"
+                "A retro-styled BASIC development environment\n"
+                "with RB Basic syntax highlighting\n\n"
+                "Copyright (c) 2025 Ronen Blumberg",
+                "About RB BASIC IDE", 
+                MB_ICONINFORMATION);
+            return 0;
+        case IDM_HELP_MANUAL:
+            MessageBox(m_hwnd,
+                "RB BASIC IDE Quick Help\n\n"
+                "File Menu:\n"
+                "  Ctrl+N - New file\n"
+                "  Ctrl+O - Open file\n"
+                "  Ctrl+S - Save file\n\n"
+                "Edit Menu:\n"
+                "  Ctrl+L - Add Line Number\n"
+                "  Ctrl+R - Renumber Lines\n"
+                "  Ctrl+Shift+R - Remove Line Numbers\n"
+                "  Ctrl+Z/Y/X/C/V/A - Undo/Redo/Cut/Copy/Paste/SelectAll\n\n"
+                "Run Menu:\n"
+                "  F7 - Compile (generates output.c and compile.bat)\n"
+                "  F9 - Run (executes program.exe)\n"
+                "  F5 - Compile & Run (both steps)\n\n"
+                "Process:\n"
+                "  rbbasic.exe transpiles .BAS to output.c\n"
+                "  compile.bat compiles output.c to program.exe\n"
+                "  program.exe runs your BASIC program",
+                "RB BASIC IDE Help",
+                MB_ICONINFORMATION);
+            return 0;
+    }
+    
+    return 0;
+}
+
+// Initialize accelerators
+void MainWindow::InitAccelerators() {
+    ACCEL accel[10];
+    
+    // Ctrl+N - New
+    accel[0].fVirt = FCONTROL | FVIRTKEY;
+    accel[0].key = 'N';
+    accel[0].cmd = IDM_FILE_NEW;
+    
+    // Ctrl+O - Open
+    accel[1].fVirt = FCONTROL | FVIRTKEY;
+    accel[1].key = 'O';
+    accel[1].cmd = IDM_FILE_OPEN;
+    
+    // Ctrl+S - Save
+    accel[2].fVirt = FCONTROL | FVIRTKEY;
+    accel[2].key = 'S';
+    accel[2].cmd = IDM_FILE_SAVE;
+    
+    // F5 - Compile & Run
+    accel[3].fVirt = FVIRTKEY;
+    accel[3].key = VK_F5;
+    accel[3].cmd = IDM_RUN_COMPILERUN;
+    
+    // F7 - Compile
+    accel[4].fVirt = FVIRTKEY;
+    accel[4].key = VK_F7;
+    accel[4].cmd = IDM_RUN_COMPILE;
+    
+    // F9 - Run
+    accel[5].fVirt = FVIRTKEY;
+    accel[5].key = VK_F9;
+    accel[5].cmd = IDM_RUN_RUN;
+    
+    // Ctrl+L - Add Line Number
+    accel[6].fVirt = FCONTROL | FVIRTKEY;
+    accel[6].key = 'L';
+    accel[6].cmd = IDM_EDIT_ADDLINE;
+    
+    // Ctrl+R - Renumber Lines
+    accel[7].fVirt = FCONTROL | FVIRTKEY;
+    accel[7].key = 'R';
+    accel[7].cmd = IDM_EDIT_RENUMBER;
+    
+    // Ctrl+Shift+R - Remove Line Numbers
+    accel[8].fVirt = FCONTROL | FSHIFT | FVIRTKEY;
+    accel[8].key = 'R';
+    accel[8].cmd = IDM_EDIT_REMOVENUMBERS;
+    
+    // Ctrl+F - Find
+    accel[9].fVirt = FCONTROL | FVIRTKEY;
+    accel[9].key = 'F';
+    accel[9].cmd = IDM_EDIT_FIND;
+    
+    m_hAccel = CreateAcceleratorTable(accel, 10);
+}
+
+// Create main window
+bool MainWindow::Create(HINSTANCE hInstance) {
+    m_hInstance = hInstance;
+    
+    // Register window class
+    WNDCLASSEX wcex = {0};
+    wcex.cbSize = sizeof(WNDCLASSEX);
+    wcex.style = CS_HREDRAW | CS_VREDRAW;
+    wcex.lpfnWndProc = WndProc;
+    wcex.hInstance = hInstance;
+    wcex.hCursor = LoadCursor(NULL, IDC_ARROW);
+    wcex.hbrBackground = (HBRUSH)(COLOR_3DFACE + 1);
+    wcex.lpszClassName = "RBIDEMainWindow";
+    wcex.hIcon = LoadIcon(NULL, IDI_APPLICATION);
+    wcex.hIconSm = LoadIcon(NULL, IDI_APPLICATION);
+    
+    if (!RegisterClassEx(&wcex)) {
+        return false;
+    }
+    
+    // Create window
+    m_hwnd = CreateWindowEx(
+        0,
+        "RBIDEMainWindow",
+        "RB BASIC IDE",
+        WS_OVERLAPPEDWINDOW,
+        CW_USEDEFAULT, CW_USEDEFAULT,
+        1024, 768,
+        NULL, NULL,
+        hInstance,
+        this
+    );
+    
+    return (m_hwnd != NULL);
+}
+
+// Show window
+void MainWindow::Show(int nCmdShow) {
+    ShowWindow(m_hwnd, nCmdShow);
+    UpdateWindow(m_hwnd);
+    UpdateTitle();
+}
+
+// Initialize Scintilla
+bool MainWindow::InitScintilla() {
+    // Load Scintilla DLL
+    m_hScintilla = LoadLibrary("SciLexer.dll");
+    if (!m_hScintilla) {
+        MessageBox(m_hwnd, 
+            "Failed to load SciLexer.dll!\n\n"
+            "Please ensure SciLexer.dll is in the same directory as the executable.",
+            "Error", MB_ICONERROR);
+        return false;
+    }
+    return true;
+}
+
+// Create menus
 void MainWindow::CreateMenus() {
     HMENU hMenuBar = CreateMenu();
-    HMENU hMenu;
     
     // File menu
-    hMenu = CreatePopupMenu();
-    AppendMenu(hMenu, MF_STRING, IDM_FILE_NEW, "&New\tCtrl+N");
-    AppendMenu(hMenu, MF_STRING, IDM_FILE_OPEN, "&Open...\tCtrl+O");
-    AppendMenu(hMenu, MF_STRING, IDM_FILE_SAVE, "&Save\tCtrl+S");
-    AppendMenu(hMenu, MF_STRING, IDM_FILE_SAVEAS, "Save &As...");
-    AppendMenu(hMenu, MF_SEPARATOR, 0, NULL);
-    AppendMenu(hMenu, MF_STRING, IDM_FILE_EXIT, "E&xit");
-    AppendMenu(hMenuBar, MF_POPUP, (UINT_PTR)hMenu, "&File");
+    HMENU hFileMenu = CreatePopupMenu();
+    AppendMenu(hFileMenu, MF_STRING, IDM_FILE_NEW, "&New\tCtrl+N");
+    AppendMenu(hFileMenu, MF_STRING, IDM_FILE_OPEN, "&Open...\tCtrl+O");
+    AppendMenu(hFileMenu, MF_STRING, IDM_FILE_SAVE, "&Save\tCtrl+S");
+    AppendMenu(hFileMenu, MF_STRING, IDM_FILE_SAVEAS, "Save &As...");
+    AppendMenu(hFileMenu, MF_SEPARATOR, 0, NULL);
+    AppendMenu(hFileMenu, MF_STRING, IDM_FILE_EXIT, "E&xit");
+    AppendMenu(hMenuBar, MF_POPUP, (UINT_PTR)hFileMenu, "&File");
     
     // Edit menu
-    hMenu = CreatePopupMenu();
-    AppendMenu(hMenu, MF_STRING, IDM_EDIT_UNDO, "&Undo\tCtrl+Z");
-    AppendMenu(hMenu, MF_STRING, IDM_EDIT_CUT, "Cu&t\tCtrl+X");
-    AppendMenu(hMenu, MF_STRING, IDM_EDIT_COPY, "&Copy\tCtrl+C");
-    AppendMenu(hMenu, MF_STRING, IDM_EDIT_PASTE, "&Paste\tCtrl+V");
-    AppendMenu(hMenu, MF_SEPARATOR, 0, NULL);
-    AppendMenu(hMenu, MF_STRING, IDM_EDIT_SELECTALL, "Select &All\tCtrl+A");
-    AppendMenu(hMenuBar, MF_POPUP, (UINT_PTR)hMenu, "&Edit");
+    HMENU hEditMenu = CreatePopupMenu();
+    AppendMenu(hEditMenu, MF_STRING, IDM_EDIT_UNDO, "&Undo\tCtrl+Z");
+    AppendMenu(hEditMenu, MF_STRING, IDM_EDIT_REDO, "&Redo\tCtrl+Y");
+    AppendMenu(hEditMenu, MF_SEPARATOR, 0, NULL);
+    AppendMenu(hEditMenu, MF_STRING, IDM_EDIT_CUT, "Cu&t\tCtrl+X");
+    AppendMenu(hEditMenu, MF_STRING, IDM_EDIT_COPY, "&Copy\tCtrl+C");
+    AppendMenu(hEditMenu, MF_STRING, IDM_EDIT_PASTE, "&Paste\tCtrl+V");
+    AppendMenu(hEditMenu, MF_SEPARATOR, 0, NULL);
+    AppendMenu(hEditMenu, MF_STRING, IDM_EDIT_SELECTALL, "Select &All\tCtrl+A");
+    AppendMenu(hEditMenu, MF_STRING, IDM_EDIT_FIND, "&Find...\tCtrl+F");
+    AppendMenu(hEditMenu, MF_SEPARATOR, 0, NULL);
+    AppendMenu(hEditMenu, MF_STRING, IDM_EDIT_ADDLINE, "Add &Line Number\tCtrl+L");
+    AppendMenu(hEditMenu, MF_STRING, IDM_EDIT_RENUMBER, "Re&number Lines\tCtrl+R");
+    AppendMenu(hEditMenu, MF_STRING, IDM_EDIT_REMOVENUMBERS, "Remove Line &Numbers\tCtrl+Shift+R");
+    AppendMenu(hMenuBar, MF_POPUP, (UINT_PTR)hEditMenu, "&Edit");
     
     // Run menu
-    hMenu = CreatePopupMenu();
-    AppendMenu(hMenu, MF_STRING, IDM_RUN_COMPILE, "&Compile\tF7");
-    AppendMenu(hMenu, MF_STRING, IDM_RUN_RUN, "&Run\tF5");
-    AppendMenu(hMenu, MF_STRING, IDM_RUN_COMPILERUN, "Compile && R&un\tCtrl+F5");
-    AppendMenu(hMenuBar, MF_POPUP, (UINT_PTR)hMenu, "&Run");
+    HMENU hRunMenu = CreatePopupMenu();
+    AppendMenu(hRunMenu, MF_STRING, IDM_RUN_COMPILE, "&Compile\tF7");
+    AppendMenu(hRunMenu, MF_STRING, IDM_RUN_RUN, "&Run\tF9");
+    AppendMenu(hRunMenu, MF_STRING, IDM_RUN_COMPILERUN, "Compile && R&un\tF5");
+    AppendMenu(hRunMenu, MF_SEPARATOR, 0, NULL);
+    AppendMenu(hRunMenu, MF_STRING, IDM_RUN_STOP, "&Stop");
+    AppendMenu(hMenuBar, MF_POPUP, (UINT_PTR)hRunMenu, "&Run");
     
     // Help menu
-    hMenu = CreatePopupMenu();
-    AppendMenu(hMenu, MF_STRING, IDM_HELP_ABOUT, "&About");
-    AppendMenu(hMenuBar, MF_POPUP, (UINT_PTR)hMenu, "&Help");
+    HMENU hHelpMenu = CreatePopupMenu();
+    AppendMenu(hHelpMenu, MF_STRING, IDM_HELP_MANUAL, "&Manual");
+    AppendMenu(hHelpMenu, MF_STRING, IDM_HELP_ABOUT, "&About");
+    AppendMenu(hMenuBar, MF_POPUP, (UINT_PTR)hHelpMenu, "&Help");
     
-	// ADD THESE 4 LINES:
-	AppendMenu(hMenu, MF_SEPARATOR, 0, NULL);
-	AppendMenu(hMenu, MF_STRING, IDM_EDIT_ADDLINE, "Add Line Number");
-	AppendMenu(hMenu, MF_STRING, IDM_EDIT_RENUMBER, "Renumber Lines");
-	AppendMenu(hMenu, MF_STRING, IDM_EDIT_REMOVENUMBERS, "Remove Line Numbers");
-	AppendMenu(hMenuBar, MF_POPUP, (UINT_PTR)hMenu, "&Edit");
-	
     SetMenu(m_hwnd, hMenuBar);
 }
 
+// Create controls
 void MainWindow::CreateControls() {
-    RECT rcClient;
-    GetClientRect(m_hwnd, &rcClient);
-    
-    // Simple EDIT control
+    // Create Scintilla editor
     m_hwndEdit = CreateWindowEx(
-        WS_EX_CLIENTEDGE, 
-        "EDIT", 
+        0,
+        "Scintilla",
         "",
-        WS_CHILD | WS_VISIBLE | WS_VSCROLL | WS_HSCROLL |
-        ES_MULTILINE | ES_AUTOVSCROLL | ES_AUTOHSCROLL | ES_WANTRETURN,
-        0, 0, 
-        rcClient.right, 
-        rcClient.bottom - m_splitterPos - SPLITTER_HEIGHT,
-        m_hwnd, 
-        (HMENU)IDC_EDITOR, 
-        m_hInstance, 
+        WS_CHILD | WS_VISIBLE | WS_VSCROLL | WS_HSCROLL,
+        0, 0, 0, 0,
+        m_hwnd,
+        (HMENU)IDC_EDITOR,
+        m_hInstance,
         NULL
     );
     
-    if (!m_hwndEdit) {
-        MessageBox(m_hwnd, "Failed to create editor!", "Error", MB_ICONERROR);
-    } else {
-        // Set a nice font
-        HFONT hFont = CreateFont(
-            18, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE,
-            DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
-            DEFAULT_QUALITY, FIXED_PITCH | FF_MODERN, "Consolas"
-        );
-        SendMessage(m_hwndEdit, WM_SETFONT, (WPARAM)hFont, TRUE);
-    }
+    // Get Scintilla direct function
+    m_fnScintilla = (sptr_t (*)(sptr_t, int, uptr_t, sptr_t))
+        SendMessage(m_hwndEdit, SCI_GETDIRECTFUNCTION, 0, 0);
+    m_pScintilla = SendMessage(m_hwndEdit, SCI_GETDIRECTPOINTER, 0, 0);
     
-    // Splitter
-    m_hwndSplitter = CreateWindowEx(
-        0, "STATIC", "",
-        WS_CHILD | WS_VISIBLE | SS_NOTIFY,
-        0, rcClient.bottom - m_splitterPos - SPLITTER_HEIGHT,
-        rcClient.right, SPLITTER_HEIGHT,
-        m_hwnd, (HMENU)IDC_SPLITTER, m_hInstance, NULL
-    );
-    
-    // Output panel
+    // Create output panel (read-only edit control)
     m_hwndOutput = CreateWindowEx(
-        WS_EX_CLIENTEDGE, "EDIT", "",
-        WS_CHILD | WS_VISIBLE | WS_VSCROLL | 
-        ES_MULTILINE | ES_READONLY | ES_AUTOVSCROLL,
-        0, rcClient.bottom - m_splitterPos,
-        rcClient.right, m_splitterPos - 20,
-        m_hwnd, (HMENU)IDC_OUTPUT, m_hInstance, NULL
+        WS_EX_CLIENTEDGE,
+        "EDIT",
+        "",
+        WS_CHILD | WS_VISIBLE | WS_VSCROLL | ES_MULTILINE | ES_READONLY | ES_AUTOVSCROLL,
+        0, 0, 0, 0,
+        m_hwnd,
+        (HMENU)IDC_OUTPUT,
+        m_hInstance,
+        NULL
     );
     
+    // Set output panel font
     HFONT hFont = CreateFont(
         16, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE,
         DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
@@ -415,146 +491,148 @@ void MainWindow::CreateControls() {
     );
     SendMessage(m_hwndOutput, WM_SETFONT, (WPARAM)hFont, TRUE);
     
-    // Status bar
+    // Create status bar
     m_hwndStatus = CreateWindowEx(
-        0, STATUSCLASSNAME, "",
-        WS_CHILD | WS_VISIBLE,
+        0,
+        STATUSCLASSNAME,
+        NULL,
+        WS_CHILD | WS_VISIBLE | SBARS_SIZEGRIP,
         0, 0, 0, 0,
-        m_hwnd, (HMENU)IDC_STATUS, m_hInstance, NULL
+        m_hwnd,
+        (HMENU)IDC_STATUS,
+        m_hInstance,
+        NULL
     );
-    
-    int parts[] = {200, 400, -1};
-    SendMessage(m_hwndStatus, SB_SETPARTS, 3, (LPARAM)parts);
-    SendMessage(m_hwndStatus, SB_SETTEXT, 0, (LPARAM)"Ready");
-    SendMessage(m_hwndStatus, SB_SETTEXT, 1, (LPARAM)"Untitled");
-    SendMessage(m_hwndStatus, SB_SETTEXT, 2, (LPARAM)"Plain text editor");
-    
-    AppendOutput("=== RBIDE Started ===\r\n");
-    AppendOutput("RB BASIC Integrated Development Environment\r\n");
-    AppendOutput("Ready to edit and compile BASIC programs!\r\n\r\n");
-    
-    // Show compiler path from config
-    std::string compilerPath = FindRBBasicCompiler();
-    char msg[512];
-    sprintf(msg, "Compiler: %s\r\n", compilerPath.c_str());
-    AppendOutput(msg);
-	InitAccelerators();  // ADD THIS LINE
 }
 
+// Setup editor with QBASIC color scheme
 void MainWindow::SetupEditor() {
-    // Nothing special needed for plain EDIT
-}
-
-void MainWindow::InitAccelerators() {
-    ACCEL accel[] = {
-        {FCONTROL | FVIRTKEY, 'N', IDM_FILE_NEW},
-        {FCONTROL | FVIRTKEY, 'O', IDM_FILE_OPEN},
-        {FCONTROL | FVIRTKEY, 'S', IDM_FILE_SAVE},
-        {FCONTROL | FVIRTKEY, 'L', IDM_EDIT_ADDLINE},
-        {FCONTROL | FSHIFT | FVIRTKEY, 'R', IDM_EDIT_RENUMBER},
-        {FVIRTKEY, VK_F5, IDM_RUN_RUN},
-        {FVIRTKEY, VK_F7, IDM_RUN_COMPILE},
-        {FCONTROL | FVIRTKEY, VK_F5, IDM_RUN_COMPILERUN},
-    };
+    // Clear all styles first
+    SendEditor(SCI_STYLECLEARALL);
     
-    m_hAccel = CreateAcceleratorTable(accel, sizeof(accel) / sizeof(ACCEL));
+    // Set default style (QBASIC blue background, yellow text)
+    SendEditor(SCI_STYLESETFONT, STYLE_DEFAULT, (sptr_t)"Courier New");
+    SendEditor(SCI_STYLESETSIZE, STYLE_DEFAULT, 11);
+    SendEditor(SCI_STYLESETBACK, STYLE_DEFAULT, COLOR_QBASIC_BACKGROUND);
+    SendEditor(SCI_STYLESETFORE, STYLE_DEFAULT, COLOR_QBASIC_TEXT);
+    
+    // Apply default style to all
+    SendEditor(SCI_STYLECLEARALL);
+    
+    // Setup syntax highlighting
+    SetupSyntaxHighlighting();
+    
+    // Line numbers margin
+    SendEditor(SCI_SETMARGINTYPEN, 0, SC_MARGIN_NUMBER);
+    SendEditor(SCI_SETMARGINWIDTHN, 0, 40);
+    SendEditor(SCI_STYLESETBACK, STYLE_LINENUMBER, COLOR_QBASIC_BACKGROUND);
+    SendEditor(SCI_STYLESETFORE, STYLE_LINENUMBER, COLOR_QBASIC_LINENUMBER);
+    
+    // Selection colors
+    SendEditor(SCI_SETSELFORE, 1, COLOR_QBASIC_SELECTION);
+    SendEditor(SCI_SETSELBACK, 1, COLOR_QBASIC_SELBACK);
+    
+    // Caret color (cursor)
+    SendEditor(SCI_SETCARETFORE, RGB(255, 255, 85), 0);
+    
+    // Initial text
+    SetEditorText("REM RB BASIC - Ronen Blumberg BASIC\nREM A retro RB Basic language\n\n10 PRINT \"Hello, World!\"\n20 END\n");
+    
+    SendEditor(SCI_SETSAVEPOINT);
+    m_modified = false;
 }
 
+// Setup syntax highlighting for BASIC
+void MainWindow::SetupSyntaxHighlighting() {
+    // Use FreeBasic lexer (closest to GWBASIC/QBASIC)
+    SendEditor(SCI_SETLEXER, SCLEX_FREEBASIC, 0);
+    
+    // Note: FreeBasic lexer treats both REM and ' as comments
+    // REM is the primary comment style in RB BASIC
+    // The lexer will highlight both, but users should use REM
+    
+    // Set keywords (REM is included as a keyword)
+    SendEditor(SCI_SETKEYWORDS, 0, (sptr_t)BASIC_KEYWORDS);
+    
+    // Style 0: Default (already set)
+    // Style 1: Comment - Bright green (REM statements)
+    SendEditor(SCI_STYLESETFORE, 1, COLOR_QBASIC_COMMENT);
+    SendEditor(SCI_STYLESETBACK, 1, COLOR_QBASIC_BACKGROUND);
+    
+    // Style 2: Number - White
+    SendEditor(SCI_STYLESETFORE, 2, COLOR_QBASIC_NUMBER);
+    SendEditor(SCI_STYLESETBACK, 2, COLOR_QBASIC_BACKGROUND);
+    
+    // Style 3: Keyword - Cyan
+    SendEditor(SCI_STYLESETFORE, 3, COLOR_QBASIC_KEYWORD);
+    SendEditor(SCI_STYLESETBACK, 3, COLOR_QBASIC_BACKGROUND);
+    SendEditor(SCI_STYLESETBOLD, 3, 1);
+    
+    // Style 4: String - Magenta
+    SendEditor(SCI_STYLESETFORE, 4, COLOR_QBASIC_STRING);
+    SendEditor(SCI_STYLESETBACK, 4, COLOR_QBASIC_BACKGROUND);
+    
+    // Style 5: Preprocessor - Keep as keyword color
+    SendEditor(SCI_STYLESETFORE, 5, COLOR_QBASIC_KEYWORD);
+    SendEditor(SCI_STYLESETBACK, 5, COLOR_QBASIC_BACKGROUND);
+    
+    // Style 6: Operator - White
+    SendEditor(SCI_STYLESETFORE, 6, COLOR_QBASIC_OPERATOR);
+    SendEditor(SCI_STYLESETBACK, 6, COLOR_QBASIC_BACKGROUND);
+    
+    // Style 7: Identifier - Yellow (default text)
+    SendEditor(SCI_STYLESETFORE, 7, COLOR_QBASIC_TEXT);
+    SendEditor(SCI_STYLESETBACK, 7, COLOR_QBASIC_BACKGROUND);
+    
+    // Additional styles for completeness
+    for (int i = 8; i < 20; i++) {
+        SendEditor(SCI_STYLESETBACK, i, COLOR_QBASIC_BACKGROUND);
+        SendEditor(SCI_STYLESETFORE, i, COLOR_QBASIC_TEXT);
+    }
+}
+
+// Resize controls
 void MainWindow::ResizeControls() {
     RECT rcClient;
     GetClientRect(m_hwnd, &rcClient);
     
-    RECT rcStatus;
-    GetWindowRect(m_hwndStatus, &rcStatus);
-    int statusHeight = rcStatus.bottom - rcStatus.top;
-    int clientHeight = rcClient.bottom - statusHeight;
+    int statusHeight = 0;
+    if (m_hwndStatus) {
+        RECT rcStatus;
+        GetWindowRect(m_hwndStatus, &rcStatus);
+        statusHeight = rcStatus.bottom - rcStatus.top;
+        MoveWindow(m_hwndStatus, 0, rcClient.bottom - statusHeight, 
+                   rcClient.right, statusHeight, TRUE);
+    }
     
-    SendMessage(m_hwndStatus, WM_SIZE, 0, 0);
+    int availHeight = rcClient.bottom - statusHeight;
     
     if (m_outputVisible) {
-        MoveWindow(m_hwndEdit, 0, 0, 
-                   rcClient.right, 
-                   clientHeight - m_splitterPos - SPLITTER_HEIGHT, 
-                   TRUE);
+        // Editor takes top portion, output takes bottom
+        int editorHeight = availHeight - m_splitterPos;
         
-        MoveWindow(m_hwndSplitter, 0, 
-                   clientHeight - m_splitterPos - SPLITTER_HEIGHT,
-                   rcClient.right, SPLITTER_HEIGHT, TRUE);
-        
-        MoveWindow(m_hwndOutput, 0, 
-                   clientHeight - m_splitterPos,
-                   rcClient.right, m_splitterPos, TRUE);
+        MoveWindow(m_hwndEdit, 0, 0, rcClient.right, editorHeight, TRUE);
+        MoveWindow(m_hwndOutput, 0, editorHeight, rcClient.right, m_splitterPos, TRUE);
     } else {
-        MoveWindow(m_hwndEdit, 0, 0, rcClient.right, clientHeight, TRUE);
-    }
-}
-
-LRESULT MainWindow::HandleCommand(WPARAM wParam, LPARAM lParam) {
-    int id = LOWORD(wParam);
-    
-    switch (id) {
-        case IDM_FILE_NEW: FileNew(); return 0;
-        case IDM_FILE_OPEN: FileOpen(); return 0;
-        case IDM_FILE_SAVE: FileSave(); return 0;
-        case IDM_FILE_SAVEAS: FileSaveAs(); return 0;
-        case IDM_FILE_EXIT: 
-            SendMessage(m_hwnd, WM_CLOSE, 0, 0);
-            return 0;
-            
-        case IDM_EDIT_UNDO: 
-            SendMessage(m_hwndEdit, EM_UNDO, 0, 0);
-            return 0;
-        case IDM_EDIT_CUT: 
-            SendMessage(m_hwndEdit, WM_CUT, 0, 0);
-            return 0;
-        case IDM_EDIT_COPY: 
-            SendMessage(m_hwndEdit, WM_COPY, 0, 0);
-            return 0;
-        case IDM_EDIT_PASTE: 
-            SendMessage(m_hwndEdit, WM_PASTE, 0, 0);
-            return 0;
-        case IDM_EDIT_SELECTALL: 
-            SendMessage(m_hwndEdit, EM_SETSEL, 0, -1);
-            return 0;
-        
-		// ADD THESE 3 LINES:
-		case IDM_EDIT_ADDLINE: AddLineNumber(); return 0;
-		case IDM_EDIT_RENUMBER: RenumberLines(); return 0;
-		case IDM_EDIT_REMOVENUMBERS: RemoveLineNumbers(); return 0;
-		
-        case IDM_RUN_COMPILE: RunCompile(); return 0;
-        case IDM_RUN_RUN: RunProgram(); return 0;
-        case IDM_RUN_COMPILERUN: RunCompileAndRun(); return 0;
-        
-        case IDM_HELP_ABOUT:
-            MessageBox(m_hwnd,
-                "RBIDE - RB BASIC IDE\n"
-                "Version 1.0 (Portable Edition)\n\n"
-                "Ronen Blumberg BASIC Integrated Development Environment\n\n"
-                "Features:\n"
-                "- Reads rbc.config for compiler paths\n"
-                "- Fully portable installation\n"
-                "- Plain text editor with Unix line ending support\n"
-                "- Compile and run BASIC programs\n\n"
-                "Built with Win32 API",
-                "About RBIDE", MB_OK | MB_ICONINFORMATION);
-            return 0;
+        // Editor takes full height
+        MoveWindow(m_hwndEdit, 0, 0, rcClient.right, availHeight, TRUE);
+        ShowWindow(m_hwndOutput, SW_HIDE);
     }
     
-    return 0;
+    UpdateStatusBar();
 }
 
+// Update title bar
 void MainWindow::UpdateTitle() {
-    std::string title = "RBIDE - ";
-    if (m_currentFile.empty()) {
-        title += "Untitled";
+    std::string title = "RB BASIC IDE";
+    if (!m_currentFile.empty()) {
+        char filename[MAX_PATH];
+        strcpy(filename, m_currentFile.c_str());
+        PathStripPath(filename);
+        title += " - ";
+        title += filename;
     } else {
-        size_t pos = m_currentFile.find_last_of("\\/");
-        if (pos != std::string::npos) {
-            title += m_currentFile.substr(pos + 1);
-        } else {
-            title += m_currentFile;
-        }
+        title += " - Untitled";
     }
     if (m_modified) {
         title += " *";
@@ -562,100 +640,64 @@ void MainWindow::UpdateTitle() {
     SetWindowText(m_hwnd, title.c_str());
 }
 
+// Update status bar
 void MainWindow::UpdateStatusBar() {
+    char status[256];
     if (m_currentFile.empty()) {
-        SendMessage(m_hwndStatus, SB_SETTEXT, 1, (LPARAM)"Untitled");
+        sprintf(status, "Ready | QBASIC Mode");
     } else {
-        SendMessage(m_hwndStatus, SB_SETTEXT, 1, (LPARAM)m_currentFile.c_str());
+        sprintf(status, "%s | QBASIC Mode", m_currentFile.c_str());
     }
+    SendMessage(m_hwndStatus, SB_SETTEXT, 0, (LPARAM)status);
 }
 
+// File operations
 void MainWindow::FileNew() {
     if (!PromptSave()) return;
     
-    SetWindowText(m_hwndEdit, "");
-    m_currentFile = "";
+    m_currentFile.clear();
+    SetEditorText("");
+    SendEditor(SCI_SETSAVEPOINT);
     m_modified = false;
     UpdateTitle();
-    ClearOutput();
-    AppendOutput("New file created. Type your BASIC code...\r\n");
+    UpdateStatusBar();
 }
 
 void MainWindow::FileOpen() {
     if (!PromptSave()) return;
     
+    char filename[MAX_PATH] = "";
     OPENFILENAME ofn = {0};
-    char szFile[MAX_PATH] = "";
-    
     ofn.lStructSize = sizeof(OPENFILENAME);
     ofn.hwndOwner = m_hwnd;
-    ofn.lpstrFile = szFile;
-    ofn.nMaxFile = sizeof(szFile);
-    ofn.lpstrFilter = "BASIC Files (*.bas)\0*.BAS;*.bas\0All Files (*.*)\0*.*\0";
-    ofn.nFilterIndex = 1;
-    ofn.lpstrTitle = "Open BASIC Program";
-    ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
+    ofn.lpstrFilter = "BASIC Files (*.bas)\0*.bas\0All Files (*.*)\0*.*\0";
+    ofn.lpstrFile = filename;
+    ofn.nMaxFile = MAX_PATH;
+    ofn.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST;
+    ofn.lpstrDefExt = "bas";
     
     if (GetOpenFileName(&ofn)) {
-        LoadFile(szFile);
+        LoadFile(filename);
     }
 }
 
 bool MainWindow::LoadFile(const char* filename) {
-    HANDLE hFile = CreateFile(filename, GENERIC_READ, FILE_SHARE_READ,
-                              NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
-    
-    if (hFile == INVALID_HANDLE_VALUE) {
+    std::ifstream file(filename, std::ios::binary);
+    if (!file.is_open()) {
         MessageBox(m_hwnd, "Failed to open file!", "Error", MB_ICONERROR);
         return false;
     }
     
-    DWORD fileSize = GetFileSize(hFile, NULL);
-    if (fileSize == 0) {
-        CloseHandle(hFile);
-        SetWindowText(m_hwndEdit, "");
-        m_currentFile = filename;
-        m_modified = false;
-        UpdateTitle();
-        AppendOutput("File is empty\r\n");
-        return true;
-    }
+    std::string content((std::istreambuf_iterator<char>(file)),
+                        std::istreambuf_iterator<char>());
+    file.close();
     
-    char* buffer = new char[fileSize + 1];
-    DWORD bytesRead;
-    ReadFile(hFile, buffer, fileSize, &bytesRead, NULL);
-    buffer[bytesRead] = '\0';
-    CloseHandle(hFile);
-    
-    // Convert line endings (Unix LF to Windows CRLF)
-    std::string content;
-    for (DWORD i = 0; i < bytesRead; i++) {
-        if (buffer[i] == '\r' && i+1 < bytesRead && buffer[i+1] == '\n') {
-            // Already CRLF - keep it
-            content += "\r\n";
-            i++; // Skip the LF
-        } else if (buffer[i] == '\n') {
-            // Unix LF - convert to CRLF
-            content += "\r\n";
-        } else if (buffer[i] == '\r') {
-            // Mac CR - convert to CRLF
-            content += "\r\n";
-        } else {
-            content += buffer[i];
-        }
-    }
-    
-    delete[] buffer;
-    
-    SetWindowText(m_hwndEdit, content.c_str());
+    SetEditorText(content);
     m_currentFile = filename;
+    SendEditor(SCI_SETSAVEPOINT);
     m_modified = false;
     UpdateTitle();
     UpdateStatusBar();
-    
-    char msg[256];
-    sprintf(msg, "Loaded: %s (%d bytes)\r\n", filename, (int)bytesRead);
-    AppendOutput(msg);
     
     return true;
 }
@@ -665,44 +707,40 @@ bool MainWindow::FileSave() {
         return FileSaveAs();
     }
     
-    int len = GetWindowTextLength(m_hwndEdit);
-    char* buffer = new char[len + 1];
-    GetWindowText(m_hwndEdit, buffer, len + 1);
-    
-    std::ofstream file(m_currentFile, std::ios::binary);
-    if (!file) {
-        delete[] buffer;
+    std::string content = GetEditorText();
+    std::ofstream file(m_currentFile.c_str(), std::ios::binary);
+    if (!file.is_open()) {
         MessageBox(m_hwnd, "Failed to save file!", "Error", MB_ICONERROR);
         return false;
     }
     
-    file << buffer;
+    file.write(content.c_str(), content.length());
     file.close();
-    delete[] buffer;
     
+    SendEditor(SCI_SETSAVEPOINT);
     m_modified = false;
     UpdateTitle();
     
-    AppendOutput("File saved successfully!\r\n");
     return true;
 }
 
 bool MainWindow::FileSaveAs() {
-    OPENFILENAME ofn = {0};
-    char szFile[MAX_PATH] = "";
+    char filename[MAX_PATH] = "";
+    if (!m_currentFile.empty()) {
+        strcpy(filename, m_currentFile.c_str());
+    }
     
+    OPENFILENAME ofn = {0};
     ofn.lStructSize = sizeof(OPENFILENAME);
     ofn.hwndOwner = m_hwnd;
-    ofn.lpstrFile = szFile;
-    ofn.nMaxFile = sizeof(szFile);
-    ofn.lpstrFilter = "BASIC Files (*.bas)\0*.BAS;*.bas\0All Files (*.*)\0*.*\0";
-    ofn.nFilterIndex = 1;
-    ofn.lpstrTitle = "Save BASIC Program";
+    ofn.lpstrFilter = "BASIC Files (*.bas)\0*.bas\0All Files (*.*)\0*.*\0";
+    ofn.lpstrFile = filename;
+    ofn.nMaxFile = MAX_PATH;
+    ofn.Flags = OFN_OVERWRITEPROMPT | OFN_PATHMUSTEXIST;
     ofn.lpstrDefExt = "bas";
-    ofn.Flags = OFN_PATHMUSTEXIST | OFN_OVERWRITEPROMPT;
     
     if (GetSaveFileName(&ofn)) {
-        m_currentFile = szFile;
+        m_currentFile = filename;
         return FileSave();
     }
     
@@ -710,531 +748,579 @@ bool MainWindow::FileSaveAs() {
 }
 
 bool MainWindow::PromptSave() {
-    if (!m_modified) return true;
+    if (!IsModified()) return true;
     
     int result = MessageBox(m_hwnd,
-        "Save changes?",
-        "RBIDE", MB_YESNOCANCEL | MB_ICONQUESTION);
+        "Do you want to save changes?",
+        "RB BASIC IDE",
+        MB_YESNOCANCEL | MB_ICONQUESTION);
     
     if (result == IDYES) {
         return FileSave();
     } else if (result == IDNO) {
         return true;
+    } else {
+        return false;
     }
-    
-    return false;
 }
 
+// Edit operations
 void MainWindow::EditUndo() {
-    SendMessage(m_hwndEdit, EM_UNDO, 0, 0);
+    SendEditor(SCI_UNDO);
 }
 
 void MainWindow::EditRedo() {
+    SendEditor(SCI_REDO);
 }
 
 void MainWindow::EditCut() {
-    SendMessage(m_hwndEdit, WM_CUT, 0, 0);
+    SendEditor(SCI_CUT);
 }
 
 void MainWindow::EditCopy() {
-    SendMessage(m_hwndEdit, WM_COPY, 0, 0);
+    SendEditor(SCI_COPY);
 }
 
 void MainWindow::EditPaste() {
-    SendMessage(m_hwndEdit, WM_PASTE, 0, 0);
+    SendEditor(SCI_PASTE);
 }
 
 void MainWindow::EditSelectAll() {
-    SendMessage(m_hwndEdit, EM_SETSEL, 0, -1);
+    SendEditor(SCI_SELECTALL);
 }
 
 void MainWindow::EditFind() {
+    MessageBox(m_hwnd, "Find functionality coming soon!", "Find", MB_ICONINFORMATION);
 }
 
+// Compilation and running
 void MainWindow::RunCompile() {
-    if (!FileSave()) {
-        AppendOutput("Please save first!\r\n");
-        return;
-    }
-    
     ClearOutput();
-    AppendOutput("=== RB BASIC Compilation ===\r\n");
+    AppendOutput("=== Compiling RB BASIC (Ronen Blumberg Basic) ===\n\n");
     
-    // Find compiler using config file
-    std::string compilerPath = FindRBBasicCompiler();
+    // Save current file if needed
+    if (m_currentFile.empty()) {
+        if (!FileSaveAs()) {
+            AppendOutput("Error: File must be saved before compiling.\n");
+            return;
+        }
+    } else if (IsModified()) {
+        FileSave();
+    }
     
-    // Verify compiler exists
-    DWORD attr = GetFileAttributes(compilerPath.c_str());
-    if (attr == INVALID_FILE_ATTRIBUTES) {
-        char msg[512];
-        sprintf(msg, "ERROR: Compiler not found!\r\nLooking for: %s\r\n", compilerPath.c_str());
+    // Get the parent directory (rbbasic-portable root)
+    char rbbasicRoot[MAX_PATH];
+    GetModuleFileName(NULL, rbbasicRoot, MAX_PATH);
+    PathRemoveFileSpec(rbbasicRoot);  // Remove rbide.exe
+    PathRemoveFileSpec(rbbasicRoot);  // Remove rbide folder
+    
+    // Check for rbbasic.exe compiler in parent directory
+    char compilerPath[MAX_PATH];
+    sprintf(compilerPath, "%s\\rbbasic.exe", rbbasicRoot);
+    
+    if (GetFileAttributes(compilerPath) == INVALID_FILE_ATTRIBUTES) {
+        AppendOutput("Error: rbbasic.exe not found in parent directory.\n");
+        AppendOutput("Expected: ");
+        AppendOutput(compilerPath);
+        AppendOutput("\n");
+        return;
+    }
+    
+    // Get the directory of the source file
+    char sourceDir[MAX_PATH];
+    strcpy(sourceDir, m_currentFile.c_str());
+    PathRemoveFileSpec(sourceDir);
+    
+    // Create temporary files for capturing output
+    char tempOutFile[MAX_PATH];
+    char tempErrFile[MAX_PATH];
+    sprintf(tempOutFile, "%s\\rbide_stdout.tmp", sourceDir);
+    sprintf(tempErrFile, "%s\\rbide_stderr.tmp", sourceDir);
+    
+    // Build command line: cmd /c "rbbasic.exe source.bas > stdout.tmp 2> stderr.tmp"
+    char cmdLine[2048];
+    sprintf(cmdLine, "cmd.exe /c \"\"%s\" \"%s\" > \"%s\" 2> \"%s\"\"", 
+            compilerPath, m_currentFile.c_str(), tempOutFile, tempErrFile);
+    
+    AppendOutput("Step 1: Transpiling BASIC to C\n");
+    AppendOutput("Compiler: ");
+    AppendOutput(compilerPath);
+    AppendOutput("\n");
+    AppendOutput("Source: ");
+    AppendOutput(m_currentFile.c_str());
+    AppendOutput("\n\n");
+    
+    // Execute rbbasic.exe with output redirection
+    STARTUPINFO si = {0};
+    PROCESS_INFORMATION pi = {0};
+    si.cb = sizeof(si);
+    si.dwFlags = STARTF_USESHOWWINDOW;
+    si.wShowWindow = SW_HIDE;
+    
+    if (!CreateProcess(NULL, cmdLine, NULL, NULL, FALSE, 
+                      CREATE_NO_WINDOW, NULL, sourceDir, &si, &pi)) {
+        AppendOutput("Error: Could not run rbbasic.exe compiler.\n");
+        return;
+    }
+    
+    // Wait but process messages to keep IDE responsive
+    while (WaitForSingleObject(pi.hProcess, 50) == WAIT_TIMEOUT) {
+        MSG msg;
+        while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
+            TranslateMessage(&msg);
+            DispatchMessage(&msg);
+        }
+    }
+    
+    DWORD exitCode;
+    GetExitCodeProcess(pi.hProcess, &exitCode);
+    
+    CloseHandle(pi.hProcess);
+    CloseHandle(pi.hThread);
+    
+    // Read stdout output
+    std::ifstream outFile(tempOutFile);
+    if (outFile.is_open()) {
+        std::string line;
+        while (std::getline(outFile, line)) {
+            AppendOutput(line.c_str());
+            AppendOutput("\n");
+        }
+        outFile.close();
+    }
+    
+    // Read stderr output (errors/warnings)
+    std::ifstream errFile(tempErrFile);
+    if (errFile.is_open()) {
+        std::string line;
+        bool hasErrors = false;
+        while (std::getline(errFile, line)) {
+            if (!hasErrors) {
+                AppendOutput("\n*** PARSING ERRORS ***\n");
+                hasErrors = true;
+            }
+            AppendOutput(line.c_str());
+            AppendOutput("\n");
+        }
+        errFile.close();
+    }
+    
+    // Clean up temp files
+    DeleteFile(tempOutFile);
+    DeleteFile(tempErrFile);
+    
+    if (exitCode != 0) {
+        char msg[128];
+        sprintf(msg, "\nRB BASIC transpiler failed with exit code: %lu\n", (unsigned long)exitCode);
         AppendOutput(msg);
-        AppendOutput("\r\nPlease check rbc.config file in the RB BASIC directory.\r\n");
+        AppendOutput("Please fix the syntax errors above and try again.\n");
         return;
     }
     
-    char msg[512];
-    sprintf(msg, "Using compiler: %s\r\n", compilerPath.c_str());
-    AppendOutput(msg);
-    sprintf(msg, "Source file: %s\r\n\r\n", m_currentFile.c_str());
-    AppendOutput(msg);
+    AppendOutput("\nTranspilation successful! Generated output.c and compile.bat\n\n");
     
-    std::string sourceDir = GetDirectory(m_currentFile);
+    // Now run compile.bat to compile output.c to program.exe
+    char compileBat[MAX_PATH];
+    sprintf(compileBat, "%s\\compile.bat", sourceDir);
     
-    AppendOutput("Step 1: Transpiling BASIC to C...\r\n");
-    std::string cmd = "\"" + compilerPath + "\" \"" + m_currentFile + "\"";
-    
-    std::string output;
-    bool success = RunProcessWithOutput(cmd.c_str(), sourceDir.c_str(), output);
-    
-    if (!output.empty()) {
-        // Convert line endings for display
-        std::string displayOutput;
-        for (size_t i = 0; i < output.length(); i++) {
-            if (output[i] == '\n' && (i == 0 || output[i-1] != '\r')) {
-                displayOutput += "\r\n";
-            } else {
-                displayOutput += output[i];
-            }
-        }
-        AppendOutput(displayOutput.c_str());
-    }
-    
-    if (!success) {
-        AppendOutput("\r\n=== Transpilation FAILED! ===\r\n");
-        AppendOutput("Check the output above for syntax errors.\r\n");
+    if (GetFileAttributes(compileBat) == INVALID_FILE_ATTRIBUTES) {
+        AppendOutput("Error: compile.bat not generated.\n");
         return;
     }
     
-    AppendOutput("\r\n=== Transpilation OK ===\r\n");
-    AppendOutput("Step 2: Compiling C to executable...\r\n");
+    AppendOutput("Step 2: Compiling C to executable\n");
+    AppendOutput("Running: compile.bat\n\n");
     
-    cmd = "cmd.exe /c compile.bat";
-    output.clear();
-    RunProcessWithOutput(cmd.c_str(), sourceDir.c_str(), output);
+    // Run compile.bat with output capture
+    char compileCmdLine[2048];
+    sprintf(compileCmdLine, "cmd.exe /c \"\"%s\" > \"%s\" 2> \"%s\"\"", 
+            compileBat, tempOutFile, tempErrFile);
     
-    if (!output.empty()) {
-        std::string displayOutput;
-        for (size_t i = 0; i < output.length(); i++) {
-            if (output[i] == '\n' && (i == 0 || output[i-1] != '\r')) {
-                displayOutput += "\r\n";
-            } else {
-                displayOutput += output[i];
-            }
-        }
-        AppendOutput(displayOutput.c_str());
+    si.cb = sizeof(si);
+    si.dwFlags = STARTF_USESHOWWINDOW;
+    si.wShowWindow = SW_HIDE;
+    
+    if (!CreateProcess(NULL, compileCmdLine, NULL, NULL, FALSE, 
+                      CREATE_NO_WINDOW, NULL, sourceDir, &si, &pi)) {
+        AppendOutput("Error: Could not run compile.bat.\n");
+        return;
     }
     
-    std::string programPath = sourceDir + "\\program.exe";
-    if (GetFileAttributes(programPath.c_str()) != INVALID_FILE_ATTRIBUTES) {
-        AppendOutput("\r\n=== Compilation SUCCESSFUL! ===\r\n");
-        AppendOutput("Created: program.exe\r\n");
-        AppendOutput("Press F5 to run the program.\r\n");
+    // Wait but process messages to keep IDE responsive
+    while (WaitForSingleObject(pi.hProcess, 50) == WAIT_TIMEOUT) {
+        MSG msg;
+        while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
+            TranslateMessage(&msg);
+            DispatchMessage(&msg);
+        }
+    }
+    
+    GetExitCodeProcess(pi.hProcess, &exitCode);
+    
+    CloseHandle(pi.hProcess);
+    CloseHandle(pi.hThread);
+    
+    // Read compilation output
+    std::ifstream compOutFile(tempOutFile);
+    if (compOutFile.is_open()) {
+        std::string line;
+        while (std::getline(compOutFile, line)) {
+            AppendOutput(line.c_str());
+            AppendOutput("\n");
+        }
+        compOutFile.close();
+    }
+    
+    // Read compilation errors
+    std::ifstream compErrFile(tempErrFile);
+    if (compErrFile.is_open()) {
+        std::string line;
+        bool hasErrors = false;
+        while (std::getline(compErrFile, line)) {
+            if (!hasErrors) {
+                AppendOutput("\n*** COMPILATION ERRORS ***\n");
+                hasErrors = true;
+            }
+            AppendOutput(line.c_str());
+            AppendOutput("\n");
+        }
+        compErrFile.close();
+    }
+    
+    // Clean up temp files
+    DeleteFile(tempOutFile);
+    DeleteFile(tempErrFile);
+    
+    if (exitCode == 0) {
+        AppendOutput("\nCompilation successful! Created program.exe\n");
     } else {
-        AppendOutput("\r\n=== Compilation FAILED! ===\r\n");
-        AppendOutput("program.exe was not created. Check errors above.\r\n");
+        char msg[128];
+        sprintf(msg, "\nCompilation failed with exit code: %lu\n", (unsigned long)exitCode);
+        AppendOutput(msg);
     }
 }
 
 void MainWindow::RunProgram() {
+    ClearOutput();
+    AppendOutput("=== Running Program ===\n\n");
+    
     if (m_currentFile.empty()) {
-        AppendOutput("No file loaded!\r\n");
+        AppendOutput("Error: No file to run. Please compile first.\n");
         return;
     }
     
-    std::string sourceDir = GetDirectory(m_currentFile);
-    std::string programPath = sourceDir + "\\program.exe";
+    // Get the directory of the source file
+    char sourceDir[MAX_PATH];
+    strcpy(sourceDir, m_currentFile.c_str());
+    PathRemoveFileSpec(sourceDir);
     
-    if (GetFileAttributes(programPath.c_str()) == INVALID_FILE_ATTRIBUTES) {
-        AppendOutput("program.exe not found! Compile first (F7).\r\n");
+    // program.exe is in the same directory as the source file
+    char exeName[MAX_PATH];
+    sprintf(exeName, "%s\\program.exe", sourceDir);
+    
+    // Check if executable exists
+    if (GetFileAttributes(exeName) == INVALID_FILE_ATTRIBUTES) {
+        AppendOutput("Error: program.exe not found. Please compile first.\n");
+        AppendOutput("Expected: ");
+        AppendOutput(exeName);
+        AppendOutput("\n");
         return;
     }
     
-    AppendOutput("\r\n=== Running Program ===\r\n");
-    ShellExecute(m_hwnd, "open", programPath.c_str(), NULL, sourceDir.c_str(), SW_SHOW);
+    AppendOutput("Running: ");
+    AppendOutput(exeName);
+    AppendOutput("\n\n");
+    
+    // Execute program in a separate window (non-blocking)
+    STARTUPINFO si = {0};
+    PROCESS_INFORMATION pi = {0};
+    si.cb = sizeof(si);
+    si.dwFlags = STARTF_USESHOWWINDOW;
+    si.wShowWindow = SW_SHOWNORMAL;  // Show console window
+    
+    // Use CREATE_NEW_CONSOLE so it runs in its own window
+    if (CreateProcess(NULL, exeName, NULL, NULL, FALSE, 
+                      CREATE_NEW_CONSOLE, NULL, sourceDir, &si, &pi)) {
+        // Don't wait - let it run independently
+        // Just close the handles immediately
+        CloseHandle(pi.hProcess);
+        CloseHandle(pi.hThread);
+        
+        AppendOutput("Program launched in separate window.\n");
+    } else {
+        AppendOutput("Error: Could not run program.exe\n");
+    }
 }
 
 void MainWindow::RunCompileAndRun() {
     RunCompile();
     
-    // Check if compilation succeeded
-    int len = GetWindowTextLength(m_hwndOutput);
-    if (len > 0) {
-        char* buffer = new char[len + 1];
-        GetWindowText(m_hwndOutput, buffer, len + 1);
-        std::string output(buffer);
-        delete[] buffer;
-        
-        if (output.find("Compilation SUCCESSFUL") != std::string::npos) {
-            Sleep(500);
-            RunProgram();
-        }
+    // Check if compilation was successful by looking for "successful" in output
+    char outputText[4096];
+    GetWindowText(m_hwndOutput, outputText, sizeof(outputText));
+    if (strstr(outputText, "successful")) {
+        RunProgram();
     }
 }
 
 void MainWindow::StopProgram() {
+    AppendOutput("\n=== Stop not yet implemented ===\n");
 }
 
+// Output panel helpers
 void MainWindow::AppendOutput(const char* text) {
     int len = GetWindowTextLength(m_hwndOutput);
     SendMessage(m_hwndOutput, EM_SETSEL, len, len);
-    SendMessage(m_hwndOutput, EM_REPLACESEL, FALSE, (LPARAM)text);
+    SendMessage(m_hwndOutput, EM_REPLACESEL, 0, (LPARAM)text);
 }
 
 void MainWindow::ClearOutput() {
     SetWindowText(m_hwndOutput, "");
 }
 
+// Editor text helpers
 std::string MainWindow::GetEditorText() {
-    int len = GetWindowTextLength(m_hwndEdit);
-    if (len == 0) return "";
-    char* buffer = new char[len + 1];
-    GetWindowText(m_hwndEdit, buffer, len + 1);
-    std::string text(buffer);
+    int length = SendEditor(SCI_GETTEXTLENGTH);
+    if (length <= 0) return "";
+    
+    char* buffer = new char[length + 1];
+    SendEditor(SCI_GETTEXT, length + 1, (sptr_t)buffer);
+    std::string result(buffer);
     delete[] buffer;
-    return text;
+    
+    return result;
 }
 
 void MainWindow::SetEditorText(const std::string& text) {
-    SetWindowText(m_hwndEdit, text.c_str());
-    m_modified = false;
+    SendEditor(SCI_SETTEXT, 0, (sptr_t)text.c_str());
 }
 
 bool MainWindow::IsModified() {
-    return m_modified;
+    return SendEditor(SCI_GETMODIFY) != 0;
 }
 
 void MainWindow::SetModified(bool modified) {
+    if (!modified) {
+        SendEditor(SCI_SETSAVEPOINT);
+    }
     m_modified = modified;
     UpdateTitle();
 }
 
+// Scintilla wrapper
 sptr_t MainWindow::SendEditor(unsigned int msg, uptr_t wParam, sptr_t lParam) {
+    if (m_fnScintilla && m_pScintilla) {
+        return m_fnScintilla(m_pScintilla, msg, wParam, lParam);
+    }
     return 0;
 }
 
-// SMART RENUMBERING - Updates GOTO and GOSUB line references
-// Just like GW-BASIC RENUM command!
-// Replace the RenumberLines() function with this version:
-
-void MainWindow::RenumberLines() {
-    int startNum = 10;
-    int increment = 10;
+// Line numbering features for BASIC programs
+void MainWindow::AddLineNumber() {
+    // Get current cursor position
+    int currentPos = SendEditor(SCI_GETCURRENTPOS);
     
-    // Get all text
-    int textLen = GetWindowTextLength(m_hwndEdit);
-    if (textLen == 0) return;
+    // Get current line number (editor line, not BASIC line number)
+    int editorLine = SendEditor(SCI_LINEFROMPOSITION, currentPos);
     
-    char* text = new char[textLen + 1];
-    GetWindowText(m_hwndEdit, text, textLen + 1);
+    // Find line number from previous line with a number
+    int prevLineNum = 0;
     
-    // STEP 1: Build a map of old line numbers to new line numbers
-    std::map<int, int> lineNumberMap;
-    std::string line;
-    int currentLineNum = startNum;
-    int pos = 0;
-    
-    for (int i = 0; i <= textLen; i++) {
-        if (text[i] == '\r' || text[i] == '\n' || text[i] == '\0') {
-            if (!line.empty()) {
-                // Check if this line has a line number
-                size_t firstNonSpace = line.find_first_not_of(" \t");
-                
-                if (firstNonSpace != std::string::npos && isdigit(line[firstNonSpace])) {
-                    // Extract the old line number
-                    int oldLineNum = atoi(line.c_str() + firstNonSpace);
-                    lineNumberMap[oldLineNum] = currentLineNum;
-                    currentLineNum += increment;
-                }
-                
-                line.clear();
-            }
+    // Search backwards from current line to find previous BASIC line number
+    for (int i = editorLine - 1; i >= 0; i--) {
+        int lineStart = SendEditor(SCI_POSITIONFROMLINE, i);
+        int lineEnd = SendEditor(SCI_GETLINEENDPOSITION, i);
+        int lineLength = lineEnd - lineStart;
+        
+        if (lineLength > 0) {
+            char* lineText = new char[lineLength + 1];
+            SendEditor(SCI_GETLINE, i, (sptr_t)lineText);
+            lineText[lineLength] = '\0';
             
-            if (text[i] == '\r' && i + 1 <= textLen && text[i + 1] == '\n') {
-                i++; // Skip LF after CR
+            // Try to parse line number from start of line
+            int lineNum = atoi(lineText);
+            delete[] lineText;
+            
+            if (lineNum > 0) {
+                prevLineNum = lineNum;
+                break;
             }
-        } else {
-            line += text[i];
         }
     }
     
-    // STEP 2: Process each line, renumber it, and update GOTO/GOSUB references
-    std::string result;
-    line.clear();
-    currentLineNum = startNum;
+    // Calculate next line number (previous + 10)
+    int nextLineNum = prevLineNum + 10;
     
-    for (int i = 0; i <= textLen; i++) {
-        if (text[i] == '\r' || text[i] == '\n' || text[i] == '\0') {
-            if (!line.empty()) {
-                // Process this line
-                size_t firstNonSpace = line.find_first_not_of(" \t");
-                
-                if (firstNonSpace != std::string::npos) {
-                    // Remove old line number if present
-                    size_t numEnd = firstNonSpace;
-                    while (numEnd < line.length() && isdigit(line[numEnd])) {
-                        numEnd++;
-                    }
-                    
-                    std::string content;
-                    if (numEnd > firstNonSpace) {
-                        // Had a line number
-                        size_t contentStart = line.find_first_not_of(" \t", numEnd);
-                        if (contentStart != std::string::npos) {
-                            content = line.substr(contentStart);
-                        }
-                    } else {
-                        content = line.substr(firstNonSpace);
-                    }
-                    
-                    // Update GOTO and GOSUB references in the content
-                    content = UpdateLineReferences(content, lineNumberMap);
-                    
-                    // Add new line number
-                    char numStr[20];
-                    sprintf(numStr, "%d ", currentLineNum);
-                    result += numStr;
-                    result += content;
-                    currentLineNum += increment;
-                } else {
-                    // Empty line
-                    result += line;
-                }
-                
-                line.clear();
-            }
-            
-            // Add line ending
-            if (text[i] == '\r') {
-                result += '\r';
-                if (i + 1 <= textLen && text[i + 1] == '\n') {
-                    result += '\n';
-                    i++;
-                }
-            } else if (text[i] == '\n') {
-                result += "\r\n";
-            }
-        } else {
-            line += text[i];
-        }
+    // Get position at start of current line
+    int lineStart = SendEditor(SCI_POSITIONFROMLINE, editorLine);
+    
+    // Check if we're at an empty line or start of line
+    int lineEnd = SendEditor(SCI_GETLINEENDPOSITION, editorLine);
+    bool isEmptyLine = (lineStart == lineEnd);
+    
+    // Create the line number string
+    char lineNumStr[16];
+    sprintf(lineNumStr, "%d ", nextLineNum);
+    
+    if (isEmptyLine || currentPos == lineStart) {
+        // Insert at start of current line
+        SendEditor(SCI_INSERTTEXT, lineStart, (sptr_t)lineNumStr);
+        // Move cursor to after the line number
+        SendEditor(SCI_SETSEL, lineStart + strlen(lineNumStr), lineStart + strlen(lineNumStr));
+    } else {
+        // Insert new line with line number
+        char newLineStr[32];
+        sprintf(newLineStr, "\n%d ", nextLineNum);
+        SendEditor(SCI_INSERTTEXT, currentPos, (sptr_t)newLineStr);
+        // Move cursor to after the line number on new line
+        SendEditor(SCI_SETSEL, currentPos + strlen(newLineStr), currentPos + strlen(newLineStr));
     }
-    
-    delete[] text;
-    
-    // Set the renumbered text
-    SetWindowText(m_hwndEdit, result.c_str());
-    m_modified = true;
-    UpdateTitle();
-    
-    char msg[256];
-    sprintf(msg, "Renumbered %d lines. GOTO/GOSUB references updated.\r\n", 
-            (int)lineNumberMap.size());
-    AppendOutput(msg);
 }
 
-// ADD THIS NEW HELPER FUNCTION - add it near RenumberLines()
-// This updates GOTO and GOSUB line number references
+void MainWindow::RenumberLines() {
+    std::string text = GetEditorText();
+    std::istringstream iss(text);
+    std::ostringstream oss;
+    std::string line;
+    int lineNum = 10;
+    std::map<int, int> lineMap; // old -> new mapping
+    
+    // First pass: renumber and build map
+    while (std::getline(iss, line)) {
+        if (line.empty()) {
+            oss << "\n";
+            continue;
+        }
+        
+        // Check if line starts with a number
+        int oldNum = atoi(line.c_str());
+        if (oldNum > 0) {
+            // Store mapping
+            lineMap[oldNum] = lineNum;
+            
+            // Find where the actual code starts (after line number)
+            size_t pos = 0;
+            while (pos < line.length() && isdigit(line[pos])) pos++;
+            while (pos < line.length() && isspace(line[pos])) pos++;
+            
+            // Write new line number and code
+            char newLine[16];
+            sprintf(newLine, "%d ", lineNum);
+            oss << newLine;
+            if (pos < line.length()) {
+                oss << line.substr(pos);
+            }
+            oss << "\n";
+            
+            lineNum += 10;
+        } else {
+            // Line without number - leave as is
+            oss << line << "\n";
+        }
+    }
+    
+    // Second pass: update GOTO/GOSUB references
+    std::string result = oss.str();
+    std::istringstream iss2(result);
+    std::ostringstream oss2;
+    
+    while (std::getline(iss2, line)) {
+        std::string updated = UpdateLineReferences(line, lineMap);
+        oss2 << updated << "\n";
+    }
+    
+    SetEditorText(oss2.str());
+}
+
+void MainWindow::RemoveLineNumbers() {
+    std::string text = GetEditorText();
+    std::istringstream iss(text);
+    std::ostringstream oss;
+    std::string line;
+    
+    while (std::getline(iss, line)) {
+        if (line.empty()) {
+            oss << "\n";
+            continue;
+        }
+        
+        // Check if line starts with a number
+        if (isdigit(line[0])) {
+            // Find where the actual code starts
+            size_t pos = 0;
+            while (pos < line.length() && isdigit(line[pos])) pos++;
+            while (pos < line.length() && isspace(line[pos])) pos++;
+            
+            // Write only the code part
+            if (pos < line.length()) {
+                oss << line.substr(pos);
+            }
+            oss << "\n";
+        } else {
+            oss << line << "\n";
+        }
+    }
+    
+    SetEditorText(oss.str());
+}
 
 std::string MainWindow::UpdateLineReferences(const std::string& line, 
                                              const std::map<int, int>& lineMap) {
     std::string result = line;
-    std::string upperLine = line;
+    std::string upper = line;
     
-    // Convert to uppercase for keyword detection
-    for (size_t i = 0; i < upperLine.length(); i++) {
-        upperLine[i] = toupper(upperLine[i]);
-    }
+    // Convert to uppercase for keyword matching
+    std::transform(upper.begin(), upper.end(), upper.begin(), ::toupper);
     
-    // Keywords that reference line numbers
-    const char* keywords[] = {"GOTO", "GOSUB", "THEN", "ELSE", "RESTORE", "RESUME", "RUN"};
+    // Find GOTO/GOSUB/THEN keywords
+    std::vector<std::string> keywords = {"GOTO ", "GOSUB ", "THEN "};
     
-    for (int k = 0; k < 7; k++) {
-        const char* keyword = keywords[k];
-        size_t kwLen = strlen(keyword);
+    for (const auto& keyword : keywords) {
         size_t pos = 0;
-        
-        while ((pos = upperLine.find(keyword, pos)) != std::string::npos) {
-            // Make sure it's a whole word (not part of another word)
-            bool isWord = (pos == 0 || !isalnum(upperLine[pos - 1])) &&
-                         (pos + kwLen >= upperLine.length() || !isalnum(upperLine[pos + kwLen]));
+        while ((pos = upper.find(keyword, pos)) != std::string::npos) {
+            // Found keyword, look for line number after it
+            size_t numStart = pos + keyword.length();
             
-            if (isWord) {
-                // Find the line number after the keyword
-                size_t numStart = pos + kwLen;
-                
-                // Skip whitespace
-                while (numStart < result.length() && 
-                       (result[numStart] == ' ' || result[numStart] == '\t')) {
-                    numStart++;
-                }
-                
-                // Check if there's a number here
-                if (numStart < result.length() && isdigit(result[numStart])) {
-                    // Extract the line number
-                    size_t numEnd = numStart;
-                    while (numEnd < result.length() && isdigit(result[numEnd])) {
-                        numEnd++;
-                    }
-                    
-                    std::string numStr = result.substr(numStart, numEnd - numStart);
-                    int oldLineNum = atoi(numStr.c_str());
-                    
-                    // Look up the new line number
-                    std::map<int, int>::const_iterator it = lineMap.find(oldLineNum);
-                    if (it != lineMap.end()) {
-                        int newLineNum = it->second;
-                        char newNumStr[20];
-                        sprintf(newNumStr, "%d", newLineNum);
-                        
-                        // Replace the old number with the new one
-                        result = result.substr(0, numStart) + newNumStr + 
-                                result.substr(numEnd);
-                        
-                        // Update upperLine too (for continued searching)
-                        upperLine = result;
-                        for (size_t i = 0; i < upperLine.length(); i++) {
-                            upperLine[i] = toupper(upperLine[i]);
-                        }
-                        
-                        // Adjust position
-                        pos = numStart + strlen(newNumStr);
-                    } else {
-                        pos = numEnd;
-                    }
-                } else {
-                    pos += kwLen;
-                }
-            } else {
-                pos += kwLen;
+            // Skip whitespace
+            while (numStart < result.length() && isspace(result[numStart])) {
+                numStart++;
             }
+            
+            // Extract line number
+            if (numStart < result.length() && isdigit(result[numStart])) {
+                size_t numEnd = numStart;
+                while (numEnd < result.length() && isdigit(result[numEnd])) {
+                    numEnd++;
+                }
+                
+                int oldLineNum = atoi(result.substr(numStart, numEnd - numStart).c_str());
+                
+                // Check if we have a mapping for this line number
+                if (lineMap.find(oldLineNum) != lineMap.end()) {
+                    int newLineNum = lineMap.at(oldLineNum);
+                    char newNumStr[16];
+                    sprintf(newNumStr, "%d", newLineNum);
+                    
+                    // Replace old number with new number
+                    result = result.substr(0, numStart) + 
+                             std::string(newNumStr) + 
+                             result.substr(numEnd);
+                    
+                    // Update upper case version too
+                    upper = result;
+                    std::transform(upper.begin(), upper.end(), upper.begin(), ::toupper);
+                }
+            }
+            
+            pos = numStart;
         }
     }
     
     return result;
 }
 
-void MainWindow::AddLineNumber() {
-    // Get current selection
-    DWORD start, end;
-    SendMessage(m_hwndEdit, EM_GETSEL, (WPARAM)&start, (LPARAM)&end);
-    
-    // Get line index of cursor
-    int lineIndex = SendMessage(m_hwndEdit, EM_LINEFROMCHAR, start, 0);
-    
-    // Get start position of this line
-    int lineStart = SendMessage(m_hwndEdit, EM_LINEINDEX, lineIndex, 0);
-    
-    // Get the line text
-    char buffer[2048];
-    *(WORD*)buffer = sizeof(buffer) - 1;
-    int len = SendMessage(m_hwndEdit, EM_GETLINE, lineIndex, (LPARAM)buffer);
-    if (len > 0) {
-        buffer[len] = '\0';
-    } else {
-        buffer[0] = '\0';
-    }
-    
-    // Check if line already starts with a number
-    std::string lineText(buffer);
-    size_t firstChar = lineText.find_first_not_of(" \t");
-    
-    if (firstChar != std::string::npos && isdigit(lineText[firstChar])) {
-        AppendOutput("Line already has a number.\r\n");
-        return;
-    }
-    
-    // Find previous line number
-    int prevLineNum = 0;
-    for (int i = lineIndex - 1; i >= 0; i--) {
-        char prevBuf[2048];
-        *(WORD*)prevBuf = sizeof(prevBuf) - 1;
-        int prevLen = SendMessage(m_hwndEdit, EM_GETLINE, i, (LPARAM)prevBuf);
-        if (prevLen > 0) {
-            prevBuf[prevLen] = '\0';
-            std::string prevLine(prevBuf);
-            size_t pos = prevLine.find_first_not_of(" \t");
-            if (pos != std::string::npos && isdigit(prevLine[pos])) {
-                prevLineNum = atoi(prevLine.c_str() + pos);
-                break;
-            }
-        }
-    }
-    
-    // Calculate new line number
-    int newLineNum = prevLineNum + 10;
-    
-    // Insert line number at start of line
-    char numStr[20];
-    sprintf(numStr, "%d ", newLineNum);
-    
-    SendMessage(m_hwndEdit, EM_SETSEL, lineStart, lineStart);
-    SendMessage(m_hwndEdit, EM_REPLACESEL, TRUE, (LPARAM)numStr);
-    
-    m_modified = true;
-    UpdateTitle();
-    
-    char msg[100];
-    sprintf(msg, "Added line number: %d\r\n", newLineNum);
-    AppendOutput(msg);
-}
-
-void MainWindow::RemoveLineNumbers() {
-    int textLen = GetWindowTextLength(m_hwndEdit);
-    if (textLen == 0) return;
-    
-    char* text = new char[textLen + 1];
-    GetWindowText(m_hwndEdit, text, textLen + 1);
-    
-    std::string result;
-    std::string line;
-    
-    for (int i = 0; i <= textLen; i++) {
-        if (text[i] == '\r' || text[i] == '\n' || text[i] == '\0') {
-            if (!line.empty()) {
-                // Remove leading line number
-                size_t firstNonSpace = line.find_first_not_of(" \t");
-                
-                if (firstNonSpace != std::string::npos) {
-                    size_t numEnd = firstNonSpace;
-                    while (numEnd < line.length() && isdigit(line[numEnd])) {
-                        numEnd++;
-                    }
-                    
-                    if (numEnd > firstNonSpace) {
-                        // Had a line number
-                        size_t contentStart = line.find_first_not_of(" \t", numEnd);
-                        if (contentStart != std::string::npos) {
-                            result += line.substr(contentStart);
-                        }
-                    } else {
-                        result += line.substr(firstNonSpace);
-                    }
-                } else {
-                    result += line;
-                }
-                
-                line.clear();
-            }
-            
-            if (text[i] == '\r') {
-                result += '\r';
-                if (i + 1 <= textLen && text[i + 1] == '\n') {
-                    result += '\n';
-                    i++;
-                }
-            } else if (text[i] == '\n') {
-                result += "\r\n";
-            }
-        } else {
-            line += text[i];
-        }
-    }
-    
-    delete[] text;
-    
-    SetWindowText(m_hwndEdit, result.c_str());
-    m_modified = true;
-    UpdateTitle();
-    
-    AppendOutput("All line numbers removed\r\n");
+// Toggle output panel visibility
+void MainWindow::ToggleOutput(bool show) {
+    m_outputVisible = show;
+    ResizeControls();
 }

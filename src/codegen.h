@@ -13,8 +13,15 @@ private:
     std::ofstream output;
     std::unordered_set<std::string> numeric_variables;
     std::unordered_set<std::string> string_variables;
-    std::unordered_map<std::string, std::vector<int>> arrays;  // name -> dimensions
-    std::unordered_map<std::string, std::vector<int>> string_arrays;
+    
+    // Array metadata - stores pointers to dimension expressions for runtime evaluation
+    struct ArrayInfo {
+        std::vector<const ASTNode*> dimension_exprs;
+        bool is_dynamic;  // true if any dimension is not a constant
+    };
+    std::unordered_map<std::string, ArrayInfo> arrays;  // name -> array info
+    std::unordered_map<std::string, ArrayInfo> string_arrays;
+    
     std::unordered_map<int, int> line_labels;
     std::vector<std::string> data_values;
     int next_label;
@@ -77,6 +84,8 @@ private:
     std::string expression_to_string(const ASTNode* expr);  // Helper to get expression as string
     void generate_function_call(const FunctionCallNode* func);
     bool is_string_expr(const ASTNode* expr);
+    std::string escape_string(const std::string& str);  // Helper to escape strings for C
+    std::string sanitize_varname(const std::string& name);  // Sanitize variable names to avoid conflicts
     
     void collect_variables(const Program* program);
     void collect_line_labels(const Program* program);
