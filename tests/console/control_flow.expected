@@ -1,0 +1,20 @@
+=== Control Flow Tests ===
+
+x > 5: TRUE
+
+Block IF: x is 10
+
+Nested IF: x=10, y=20
+
+Before GOTO
+After GOTO to 100
+
+Before GOSUB
+Inside GOSUB
+After GOSUB return
+
+ON GOTO: second
+
+ON GOSUB: third
+
+All control flow tests passed!

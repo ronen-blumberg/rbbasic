@@ -1,0 +1,15 @@
+=== TYPE...END TYPE Tests ===
+
+Test 1: Basic TYPE usage
+Name: Alice
+Age:25
+Score:95.5
+
+Test 2: Multiple typed variables
+Person 2: Bob age30
+
+Test 3: Modify fields
+Updated age:26
+Updated score:97
+
+All TYPE tests passed!

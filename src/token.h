@@ -29,16 +29,31 @@ enum class TokenType {
     
     // Graphics Commands
     SCREEN, PSET, LINE, CIRCLE, PAINT, POINT,
+    DRAW, PALETTE_KW, VIEW_KW, WINDOW_KW, PCOPY,
     
     // Sound Commands
     SOUND, PLAY_KW,
     
     // System Functions
-    RANDOMIZE, BEEP, SLEEP,
+    RANDOMIZE, BEEP, SLEEP, SHELL_KW, SYSTEM_KW, POKE,
     
     // Advanced Control Flow
-    ON,
-    
+    ON, SELECT, CASE, END_SELECT, EXIT,
+
+    // Declarations
+    CONST_KW, DECLARE, SHARED, STATIC, SWAP,
+    REDIM, PRESERVE, ERASE,
+
+    // Phase 2: Error Handling & File I/O
+    RESUME, WRITE_KW, SEEK_KW, GET_KW, PUT_KW,
+
+    // Phase 3: User-Defined Types
+    TYPE_KW, END_TYPE,
+
+    // Phase 6: QB64 Extensions
+    QB_DISPLAY, QB_LIMIT, QB_FREEIMAGE, QB_PUTIMAGE, QB_PRINTSTRING,
+    QB_SNDPLAY, QB_SNDSTOP, QB_SNDVOL,
+
     // User Functions
     DEF, FN,
     

@@ -1,0 +1,12 @@
+=== CONST and SWAP Tests ===
+
+PI =3.14159
+Greeting: Hello World
+
+Before SWAP: a =10 b =20
+After SWAP: a =20 b =10
+
+Before SWAP: x$ = First y$ = Second
+After SWAP: x$ = Second y$ = First
+
+All CONST/SWAP tests passed!

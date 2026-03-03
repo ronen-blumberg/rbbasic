@@ -1,0 +1,1956 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RB BASIC Language Manual</title>
+    <style>
+        body { font-family: 'Segoe UI', Arial, sans-serif; max-width: 1000px; margin: 0 auto; padding: 20px; background: #f5f5f5; }
+        .container { background: white; padding: 40px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+        h1 { color: #667eea; border-bottom: 3px solid #667eea; padding-bottom: 10px; }
+        h2 { color: #764ba2; margin-top: 30px; border-bottom: 2px solid #764ba2; padding-bottom: 8px; }
+        h3 { color: #555; margin-top: 20px; }
+        code { background: #f4f4f4; padding: 2px 6px; border-radius: 3px; font-family: 'Courier New', monospace; }
+        pre { background: #2c3e50; color: #ecf0f1; padding: 15px; border-radius: 5px; overflow-x: auto; }
+        pre code { background: none; color: inherit; }
+        table { width: 100%; border-collapse: collapse; margin: 15px 0; }
+        th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
+        th { background: #667eea; color: white; }
+        tr:nth-child(even) { background: #f9f9f9; }
+        .toc { background: #f8f9fa; padding: 20px; border-radius: 5px; margin: 20px 0; }
+        .toc ul { list-style: none; }
+        .toc a { color: #667eea; text-decoration: none; }
+        .toc a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <div class="container">
+
+<h1>RB BASIC Language Manual</h1>
+<h2 id="complete-reference-guide-for-rb-basic-compiler-v2.0">Complete Reference Guide for RB BASIC Compiler v2.0</h2>
+<br>
+<p>---</p>
+<br>
+<h2 id="table-of-contents">Table of Contents</h2>
+<br>
+<p>1. [Introduction](#introduction)</p>
+<p>2. [Getting Started](#getting-started)</p>
+<p>3. [Program Structure](#program-structure)</p>
+<p>4. [Data Types](#data-types)</p>
+<p>5. [Variables and Arrays](#variables-and-arrays)</p>
+<p>6. [Operators](#operators)</p>
+<p>7. [Input/Output Statements](#inputoutput-statements)</p>
+<p>8. [Control Flow Statements](#control-flow-statements)</p>
+<p>9. [Subroutines and Functions](#subroutines-and-functions)</p>
+<p>10. [String Functions](#string-functions)</p>
+<p>11. [Math Functions](#math-functions)</p>
+<p>12. [File I/O](#file-io)</p>
+<p>13. [Screen Control](#screen-control)</p>
+<p>14. [Graphics Commands](#graphics-commands)</p>
+<p>15. [Sound Commands](#sound-commands)</p>
+<p>16. [System Commands](#system-commands)</p>
+<p>17. [Complete Keyword Reference](#complete-keyword-reference)</p>
+<p>18. [Example Programs](#example-programs)</p>
+<p>19. [Error Messages and Troubleshooting](#error-messages-and-troubleshooting)</p>
+<br>
+<p>---</p>
+<br>
+<h2 id="introduction">Introduction</h2>
+<br>
+<h3>What is RB BASIC?</h3>
+<br>
+<p>RB BASIC (Ronen Blue BASIC) is a BASIC-to-C transpiler that provides full compatibility with GW-BASIC and QBasic programs. It compiles classic BASIC code into optimized C code, which is then compiled into native Windows executables.</p>
+<br>
+<h3>Features</h3>
+<br>
+<li>✅ Full GW-BASIC/QBasic compatibility</li>
+<li>✅ Compiles to native Windows executables</li>
+<li>✅ SDL2-based graphics support</li>
+<li>✅ Fast execution (compiled, not interpreted)</li>
+<li>✅ Modern development workflow</li>
+<li>✅ Extensive string manipulation</li>
+<li>✅ File I/O support</li>
+<li>✅ Sound and graphics capabilities</li>
+<br>
+<h3>Compatibility</h3>
+<br>
+<p>RB BASIC is compatible with:</p>
+<li>**GW-BASIC** - Full support</li>
+<li>**QBasic** - Full support for core features</li>
+<li>**QuickBASIC** - Most features supported</li>
+<li>**QB64** - Core compatibility</li>
+<li>**FreeBASIC** - Basic syntax compatibility</li>
+<br>
+<p>---</p>
+<br>
+<h2 id="getting-started">Getting Started</h2>
+<br>
+<h3>Installation</h3>
+<br>
+<p>1. Ensure you have MinGW32 (GCC) installed</p>
+<p>2. Extract RB BASIC compiler to <code>C:\RBBASIC</code></p>
+<p>3. Add compiler directory to your PATH</p>
+<p>4. Verify SDL2 libraries are in <code>C:\RBBASIC\lib</code></p>
+<br>
+<h3>Your First Program</h3>
+<br>
+<p>Create a file named <code>hello.bas</code>:</p>
+<br>
+<pre><code>
+10 PRINT "Hello, World!"
+20 END
+</code></pre>
+<br>
+<p>Compile and run:</p>
+<br>
+<pre><code>
+rbbasic hello.bas
+compile.bat
+program.exe
+</code></pre>
+<br>
+<h3>Command Line Usage</h3>
+<br>
+<pre><code>
+rbbasic <source.bas> [-o output.exe] [-c]
+
+Options:
+  -o <file>   Specify output executable name
+  -c          Generate C code only (don't compile)
+  -h, --help  Show help message
+</code></pre>
+<br>
+<p>---</p>
+<br>
+<h2 id="program-structure">Program Structure</h2>
+<br>
+<h3>Line Numbers</h3>
+<br>
+<p>RB BASIC programs use line numbers to organize code:</p>
+<br>
+<pre><code>
+10 REM This is the first line
+20 PRINT "Hello"
+30 END
+</code></pre>
+<br>
+<p><strong>Rules:</strong></p>
+<li>Line numbers must be integers (1-65535)</li>
+<li>Line numbers should be in ascending order</li>
+<li>Common practice: increment by 10 to allow insertions</li>
+<li>Line numbers are required for GOTO/GOSUB targets</li>
+<br>
+<h3>Multiple Statements Per Line</h3>
+<br>
+<p>Use colon (<code>:</code>) to separate statements:</p>
+<br>
+<pre><code>
+10 A = 5: B = 10: PRINT A + B
+</code></pre>
+<br>
+<h3>Comments</h3>
+<br>
+<pre><code>
+10 REM This is a comment
+20 ' This is also a comment (alternative syntax)
+</code></pre>
+<br>
+<h3>Program Termination</h3>
+<br>
+<pre><code>
+END
+</code></pre>
+<br>
+<p>Terminates program execution immediately.</p>
+<br>
+<p>---</p>
+<br>
+<h2 id="data-types">Data Types</h2>
+<br>
+<h3>Numeric Types</h3>
+<br>
+<p>RB BASIC uses double-precision floating-point for all numeric values:</p>
+<br>
+<pre><code>
+10 A = 42          ' Integer value
+20 B = 3.14159     ' Floating point
+30 C = -273.15     ' Negative number
+40 D = 1.23E+10    ' Scientific notation
+</code></pre>
+<br>
+<h3>String Type</h3>
+<br>
+<p>Strings are denoted by <code>$</code> suffix:</p>
+<br>
+<pre><code>
+10 NAME$ = "John Smith"
+20 GREETING$ = "Hello, " + NAME$
+</code></pre>
+<br>
+<p><strong>String Limits:</strong></p>
+<li>Maximum length: 255 characters</li>
+<li>Enclosed in double quotes (`"`)</li>
+<br>
+<p>---</p>
+<br>
+<h2 id="variables-and-arrays">Variables and Arrays</h2>
+<br>
+<h3>Variable Names</h3>
+<br>
+<p><strong>Rules:</strong></p>
+<li>Must start with a letter (A-Z)</li>
+<li>Can contain letters, numbers, and underscore</li>
+<li>Maximum length: typically 40 characters</li>
+<li>Case-insensitive (A = a)</li>
+<li>String variables end with `$`</li>
+<br>
+<p><strong>Valid Examples:</strong></p>
+<pre><code>
+10 COUNT = 0
+20 SCORE = 100
+30 PLAYER_NAME$ = "Alice"
+40 X1 = 5
+</code></pre>
+<br>
+<p><strong>Invalid Examples:</strong></p>
+<pre><code>
+10 1COUNT = 0      ' Can't start with number
+20 MY-VAR = 5      ' Hyphen not allowed
+</code></pre>
+<br>
+<h3>Variable Types</h3>
+<br>
+<pre><code>
+' Numeric variables (default)
+10 A = 42
+20 COUNTER = 100
+
+' String variables ($ suffix)
+30 NAME$ = "Bob"
+40 ADDRESS$ = "123 Main St"
+</code></pre>
+<br>
+<h3>Arrays</h3>
+<br>
+<h4>Declaration with DIM</h4>
+<br>
+<pre><code>
+' Single dimension array (0-10 = 11 elements)
+10 DIM SCORES(10)
+
+' Two-dimensional array
+20 DIM GRID(5, 5)
+
+' String array
+30 DIM NAMES$(100)
+
+' Multiple arrays in one statement
+40 DIM A(10), B(20), C$(15)
+</code></pre>
+<br>
+<p><strong>Important:</strong></p>
+<li>Arrays are zero-indexed: `A(10)` has elements 0-10 (11 total)</li>
+<li>Must use DIM before accessing arrays</li>
+<li>Array bounds are fixed at compile time</li>
+<br>
+<h4>Using Arrays</h4>
+<br>
+<pre><code>
+10 DIM NUMBERS(5)
+20 FOR I = 0 TO 5
+30   NUMBERS(I) = I * 10
+40 NEXT I
+50 PRINT NUMBERS(3)  ' Prints: 30
+</code></pre>
+<br>
+<h4>Multi-Dimensional Arrays</h4>
+<br>
+<pre><code>
+10 DIM BOARD(8, 8)  ' Chess board
+20 FOR ROW = 0 TO 7
+30   FOR COL = 0 TO 7
+40     BOARD(ROW, COL) = 0
+50   NEXT COL
+60 NEXT ROW
+</code></pre>
+<br>
+<p>---</p>
+<br>
+<h2 id="operators">Operators</h2>
+<br>
+<h3>Arithmetic Operators</h3>
+<br>
+<table>
+<tr><th>Operator</th><th>Description</th><th>Example</th><th>Result</th></tr>
+<tr><th>`+`</th><th>Addition</th><th>`5 + 3`</th><th>8</th></tr>
+<tr><th>`-`</th><th>Subtraction</th><th>`10 - 4`</th><th>6</th></tr>
+<tr><th>`*`</th><th>Multiplication</th><th>`6 * 7`</th><th>42</th></tr>
+<tr><th>`/`</th><th>Division</th><th>`15 / 3`</th><th>5</th></tr>
+<tr><th>`^`</th><th>Exponentiation</th><th>`2 ^ 3`</th><th>8</th></tr>
+<tr><th>`MOD`</th><th>Modulo</th><th>`17 MOD 5`</th><th>2</th></tr>
+</table>
+<br>
+<h3>Comparison Operators</h3>
+<br>
+<table>
+<tr><td>Operator</td><td>Description</td><td>Example</td></tr>
+<tr><th>`=`</th><th>Equal to</th><th>`A = 5`</th></tr>
+<tr><th>`<>`</th><th>Not equal to</th><th>`A <> 5`</th></tr>
+<tr><th>`<`</th><th>Less than</th><th>`A < 10`</th></tr>
+<tr><th>`>`</th><th>Greater than</th><th>`A > 10`</th></tr>
+<tr><th>`<=`</th><th>Less than or equal</th><th>`A <= 10`</th></tr>
+<tr><th>`>=`</th><th>Greater than or equal</th><th>`A >= 10`</th></tr>
+</table>
+<br>
+<h3>Logical Operators</h3>
+<br>
+<table>
+<tr><td>Operator</td><td>Description</td><td>Example</td></tr>
+<tr><th>`AND`</th><th>Logical AND</th><th>`A > 0 AND A < 10`</th></tr>
+<tr><th>`OR`</th><th>Logical OR</th><th>`A = 5 OR A = 10`</th></tr>
+<tr><th>`NOT`</th><th>Logical NOT</th><th>`NOT (A = 5)`</th></tr>
+</table>
+<br>
+<h3>String Operators</h3>
+<br>
+<table>
+<tr><td>Operator</td><td>Description</td><td>Example</td></tr>
+<tr><th>`+`</th><th>Concatenation</th><th>`"Hello" + " " + "World"`</th></tr>
+</table>
+<br>
+<h3>Operator Precedence</h3>
+<br>
+<p>From highest to lowest:</p>
+<br>
+<p>1. <code>^</code> (Exponentiation)</p>
+<p>2. <code>-</code> (Unary minus)</p>
+<p>3. <code>*</code>, <code>/</code> (Multiplication, Division)</p>
+<p>4. <code>MOD</code> (Modulo)</p>
+<p>5. <code>+</code>, <code>-</code> (Addition, Subtraction)</p>
+<p>6. <code>=</code>, <code><></code>, <code><</code>, <code>></code>, <code><=</code>, <code>>=</code> (Comparison)</p>
+<p>7. <code>NOT</code> (Logical NOT)</p>
+<p>8. <code>AND</code> (Logical AND)</p>
+<p>9. <code>OR</code> (Logical OR)</p>
+<br>
+<p>Use parentheses to override precedence:</p>
+<br>
+<pre><code>
+10 RESULT = (5 + 3) * 2  ' Result: 16
+20 VALUE = 5 + 3 * 2     ' Result: 11
+</code></pre>
+<br>
+<p>---</p>
+<br>
+<h2 id="input/output-statements">Input/Output Statements</h2>
+<br>
+<h3>PRINT Statement</h3>
+<br>
+<p>Display text and values:</p>
+<br>
+<pre><code>
+10 PRINT "Hello, World!"
+20 PRINT 42
+30 PRINT "The answer is"; 42
+40 PRINT "A="; A; "B="; B
+</code></pre>
+<br>
+<p><strong>Print Separators:</strong></p>
+<br>
+<table>
+<tr><th>Separator</th><th>Effect</th><th>Example</th></tr>
+<tr><th>`;`</th><th>No space</th><th>`PRINT "A";5` → `A5`</th></tr>
+<tr><th>`,`</th><th>Tab to next zone</th><th>`PRINT "A",5` → `A     5`</th></tr>
+<tr><th>(none)</th><th>Newline after</th><th>`PRINT "Hello"`</th></tr>
+</table>
+<br>
+<p><strong>Suppress Newline:</strong></p>
+<br>
+<pre><code>
+10 PRINT "Enter name: ";  ' Semicolon prevents newline
+20 INPUT NAME$
+</code></pre>
+<br>
+<h3>INPUT Statement</h3>
+<br>
+<p>Get user input:</p>
+<br>
+<pre><code>
+' Simple input
+10 INPUT A
+20 INPUT "Enter your name"; NAME$
+
+' Multiple inputs
+30 INPUT "Enter X, Y"; X, Y
+
+' Input with prompt
+40 INPUT "Age"; AGE
+</code></pre>
+<br>
+<p><strong>Notes:</strong></p>
+<li>User must press Enter</li>
+<li>For multiple values, separate with commas</li>
+<li>String input doesn't require quotes (unless string contains comma)</li>
+<br>
+<h3>LINE INPUT Statement</h3>
+<br>
+<p>Read entire line as string (including commas and quotes):</p>
+<br>
+<pre><code>
+10 LINE INPUT "Enter full address: "; ADDRESS$
+20 LINE INPUT SENTENCE$
+</code></pre>
+<br>
+<p><strong>Use LINE INPUT when:</strong></p>
+<li>Input may contain commas</li>
+<li>Input may contain quotes</li>
+<li>You want the entire line exactly as typed</li>
+<br>
+<p>---</p>
+<br>
+<h2 id="control-flow-statements">Control Flow Statements</h2>
+<br>
+<h3>IF...THEN...ELSE</h3>
+<br>
+<h4>Simple IF</h4>
+<br>
+<pre><code>
+10 IF A > 10 THEN PRINT "Greater than 10"
+20 IF B = 5 THEN GOTO 100
+</code></pre>
+<br>
+<h4>Block IF (Recommended)</h4>
+<br>
+<pre><code>
+10 IF SCORE > 100 THEN
+20   PRINT "High score!"
+30   BONUS = 50
+40 ELSE
+50   PRINT "Try again"
+60   BONUS = 0
+70 END IF
+</code></pre>
+<br>
+<h4>IF with ELSEIF</h4>
+<br>
+<pre><code>
+10 IF GRADE >= 90 THEN
+20   LETTER$ = "A"
+30 ELSEIF GRADE >= 80 THEN
+40   LETTER$ = "B"
+50 ELSEIF GRADE >= 70 THEN
+60   LETTER$ = "C"
+70 ELSE
+80   LETTER$ = "F"
+90 END IF
+</code></pre>
+<br>
+<h3>FOR...NEXT Loop</h3>
+<br>
+<pre><code>
+' Count from 1 to 10
+10 FOR I = 1 TO 10
+20   PRINT I
+30 NEXT I
+
+' Count with step
+40 FOR I = 0 TO 100 STEP 10
+50   PRINT I
+60 NEXT I
+
+' Count backwards
+70 FOR I = 10 TO 1 STEP -1
+80   PRINT I
+90 NEXT I
+</code></pre>
+<br>
+<p><strong>Nested Loops:</strong></p>
+<br>
+<pre><code>
+10 FOR ROW = 1 TO 5
+20   FOR COL = 1 TO 5
+30     PRINT "*";
+40   NEXT COL
+50   PRINT  ' Newline
+60 NEXT ROW
+</code></pre>
+<br>
+<h3>WHILE...WEND Loop</h3>
+<br>
+<pre><code>
+10 COUNT = 0
+20 WHILE COUNT < 10
+30   PRINT COUNT
+40   COUNT = COUNT + 1
+50 WEND
+</code></pre>
+<br>
+<h3>DO...LOOP</h3>
+<br>
+<h4>DO WHILE (test at start)</h4>
+<br>
+<pre><code>
+10 COUNT = 0
+20 DO WHILE COUNT < 10
+30   PRINT COUNT
+40   COUNT = COUNT + 1
+50 LOOP
+</code></pre>
+<br>
+<h4>DO UNTIL (test at start)</h4>
+<br>
+<pre><code>
+10 DO UNTIL ANSWER$ = "YES"
+20   INPUT "Continue (YES/NO)"; ANSWER$
+30 LOOP
+</code></pre>
+<br>
+<h4>DO...LOOP WHILE (test at end)</h4>
+<br>
+<pre><code>
+10 DO
+20   INPUT "Enter number (0 to quit)"; NUM
+30   PRINT NUM * 2
+40 LOOP WHILE NUM <> 0
+</code></pre>
+<br>
+<h4>DO...LOOP UNTIL (test at end)</h4>
+<br>
+<pre><code>
+10 DO
+20   INPUT "Guess a number"; GUESS
+30   IF GUESS = SECRET THEN PRINT "Correct!"
+40 LOOP UNTIL GUESS = SECRET
+</code></pre>
+<br>
+<h3>GOTO Statement</h3>
+<br>
+<p>Jump to a line number:</p>
+<br>
+<pre><code>
+10 PRINT "Start"
+20 GOTO 100
+30 PRINT "This won't print"
+100 PRINT "End"
+</code></pre>
+<br>
+<p><strong>Warning:</strong> Excessive GOTO can make code hard to read. Use structured loops when possible.</p>
+<br>
+<h3>GOSUB...RETURN</h3>
+<br>
+<p>Call a subroutine:</p>
+<br>
+<pre><code>
+10 GOSUB 1000  ' Call subroutine
+20 PRINT "Back from subroutine"
+30 END
+
+1000 REM Subroutine
+1010 PRINT "In subroutine"
+1020 RETURN
+</code></pre>
+<br>
+<h3>ON...GOTO</h3>
+<br>
+<p>Jump based on expression value:</p>
+<br>
+<pre><code>
+10 INPUT "Choose (1-3)"; CHOICE
+20 ON CHOICE GOTO 100, 200, 300
+30 PRINT "Invalid choice"
+40 END
+
+100 PRINT "Option 1": END
+200 PRINT "Option 2": END
+300 PRINT "Option 3": END
+</code></pre>
+<br>
+<h3>ON...GOSUB</h3>
+<br>
+<p>Call subroutine based on expression:</p>
+<br>
+<pre><code>
+10 INPUT "Menu (1-3)"; CHOICE
+20 ON CHOICE GOSUB 1000, 2000, 3000
+30 END
+
+1000 PRINT "Menu 1": RETURN
+2000 PRINT "Menu 2": RETURN
+3000 PRINT "Menu 3": RETURN
+</code></pre>
+<br>
+<p>---</p>
+<br>
+<h2 id="subroutines-and-functions">Subroutines and Functions</h2>
+<br>
+<h3>SUB Procedures</h3>
+<br>
+<p>Define reusable subroutines:</p>
+<br>
+<pre><code>
+10 CALL GREET("Alice", 5)
+20 END
+
+SUB GREET(NAME$, TIMES)
+  FOR I = 1 TO TIMES
+    PRINT "Hello, "; NAME$
+  NEXT I
+END SUB
+</code></pre>
+<br>
+<h3>FUNCTION Procedures</h3>
+<br>
+<p>Define functions that return values:</p>
+<br>
+<pre><code>
+10 PRINT "5! = "; FACTORIAL(5)
+20 END
+
+FUNCTION FACTORIAL(N)
+  IF N <= 1 THEN
+    FACTORIAL = 1
+  ELSE
+    FACTORIAL = N * FACTORIAL(N - 1)
+  END IF
+END FUNCTION
+</code></pre>
+<br>
+<h3>DEF FN - User-Defined Functions</h3>
+<br>
+<p>Simple one-line functions:</p>
+<br>
+<pre><code>
+10 DEF FN SQUARE(X) = X * X
+20 DEF FN AREA(R) = 3.14159 * R ^ 2
+30 DEF FN CELSIUS(F) = (F - 32) * 5 / 9
+
+100 PRINT FN SQUARE(5)      ' Prints: 25
+110 PRINT FN AREA(10)       ' Prints: 314.159
+120 PRINT FN CELSIUS(98.6)  ' Prints: 37
+</code></pre>
+<br>
+<p>---</p>
+<br>
+<h2 id="string-functions">String Functions</h2>
+<br>
+<h3>LEN - String Length</h3>
+<br>
+<p>Returns the length of a string:</p>
+<br>
+<pre><code>
+10 A$ = "HELLO"
+20 PRINT LEN(A$)  ' Prints: 5
+</code></pre>
+<br>
+<h3>LEFT$ - Left Substring</h3>
+<br>
+<p>Returns leftmost characters:</p>
+<br>
+<pre><code>
+10 A$ = "HELLO WORLD"
+20 PRINT LEFT$(A$, 5)  ' Prints: HELLO
+</code></pre>
+<br>
+<h3>RIGHT$ - Right Substring</h3>
+<br>
+<p>Returns rightmost characters:</p>
+<br>
+<pre><code>
+10 A$ = "HELLO WORLD"
+20 PRINT RIGHT$(A$, 5)  ' Prints: WORLD
+</code></pre>
+<br>
+<h3>MID$ - Middle Substring</h3>
+<br>
+<p>Returns middle portion:</p>
+<br>
+<pre><code>
+10 A$ = "HELLO WORLD"
+20 PRINT MID$(A$, 7, 5)   ' Prints: WORLD (start at 7, length 5)
+30 PRINT MID$(A$, 7)      ' Prints: WORLD (from 7 to end)
+</code></pre>
+<br>
+<p><strong>Note:</strong> String positions are 1-based (first character is position 1).</p>
+<br>
+<h3>INSTR - Find Substring</h3>
+<br>
+<p>Returns position of substring (0 if not found):</p>
+<br>
+<pre><code>
+10 A$ = "HELLO WORLD"
+20 POS = INSTR(A$, "WORLD")
+30 PRINT POS  ' Prints: 7
+
+40 POS = INSTR(A$, "XYZ")
+50 PRINT POS  ' Prints: 0 (not found)
+</code></pre>
+<br>
+<h3>CHR$ - Character from ASCII</h3>
+<br>
+<p>Returns character for ASCII code:</p>
+<br>
+<pre><code>
+10 PRINT CHR$(65)   ' Prints: A
+20 PRINT CHR$(72); CHR$(73)  ' Prints: HI
+30 PRINT CHR$(34)   ' Prints: " (quote)
+</code></pre>
+<br>
+<p><strong>Common ASCII codes:</strong></p>
+<li>34 = `"` (quote)</li>
+<li>65-90 = A-Z</li>
+<li>97-122 = a-z</li>
+<li>48-57 = 0-9</li>
+<li>32 = space</li>
+<li>13 = carriage return</li>
+<li>10 = line feed</li>
+<br>
+<h3>ASC - ASCII from Character</h3>
+<br>
+<p>Returns ASCII code of first character:</p>
+<br>
+<pre><code>
+10 PRINT ASC("A")     ' Prints: 65
+20 PRINT ASC("HELLO") ' Prints: 72 (H)
+</code></pre>
+<br>
+<h3>STR$ - Number to String</h3>
+<br>
+<p>Converts number to string:</p>
+<br>
+<pre><code>
+10 A = 42
+20 B$ = STR$(A)
+30 PRINT "The answer is" + B$
+</code></pre>
+<br>
+<h3>VAL - String to Number</h3>
+<br>
+<p>Converts string to number:</p>
+<br>
+<pre><code>
+10 A$ = "42"
+20 B = VAL(A$)
+30 PRINT B * 2  ' Prints: 84
+</code></pre>
+<br>
+<h3>UCASE$ - Convert to Uppercase</h3>
+<br>
+<pre><code>
+10 A$ = "Hello World"
+20 PRINT UCASE$(A$)  ' Prints: HELLO WORLD
+</code></pre>
+<br>
+<h3>LCASE$ - Convert to Lowercase</h3>
+<br>
+<pre><code>
+10 A$ = "Hello World"
+20 PRINT LCASE$(A$)  ' Prints: hello world
+</code></pre>
+<br>
+<h3>SPACE$ - Generate Spaces</h3>
+<br>
+<pre><code>
+10 PRINT "Hello" + SPACE$(5) + "World"
+' Prints: Hello     World
+</code></pre>
+<br>
+<h3>STRING$ - Repeat Character</h3>
+<br>
+<pre><code>
+10 PRINT STRING$(10, "*")  ' Prints: **********
+20 PRINT STRING$(5, 65)    ' Prints: AAAAA (ASCII 65 = A)
+</code></pre>
+<br>
+<p>---</p>
+<br>
+<h2 id="math-functions">Math Functions</h2>
+<br>
+<h3>Basic Math Functions</h3>
+<br>
+<table>
+<tr><th>Function</th><th>Description</th><th>Example</th></tr>
+<tr><th>`ABS(x)`</th><th>Absolute value</th><th>`ABS(-5)` → 5</th></tr>
+<tr><th>`SGN(x)`</th><th>Sign (-1, 0, 1)</th><th>`SGN(-5)` → -1</th></tr>
+<tr><th>`INT(x)`</th><th>Integer part (floor)</th><th>`INT(3.7)` → 3</th></tr>
+<tr><th>`FIX(x)`</th><th>Truncate to integer</th><th>`FIX(-3.7)` → -3</th></tr>
+<tr><th>`CINT(x)`</th><th>Round to nearest integer</th><th>`CINT(3.5)` → 4</th></tr>
+</table>
+<br>
+<h3>Trigonometric Functions</h3>
+<br>
+<table>
+<tr><td>Function</td><td>Description</td><td>Example</td></tr>
+<tr><th>`SIN(x)`</th><th>Sine (x in radians)</th><th>`SIN(1.5708)` → 1</th></tr>
+<tr><th>`COS(x)`</th><th>Cosine (x in radians)</th><th>`COS(0)` → 1</th></tr>
+<tr><th>`TAN(x)`</th><th>Tangent (x in radians)</th><th>`TAN(0.785398)` → 1</th></tr>
+<tr><th>`ATN(x)`</th><th>Arctangent</th><th>`ATN(1)` → 0.785398</th></tr>
+</table>
+<br>
+<p><strong>Convert degrees to radians:</strong></p>
+<pre><code>
+10 DEF FN RAD(D) = D * 3.14159 / 180
+20 ANGLE = FN RAD(90)
+30 PRINT SIN(ANGLE)  ' Prints: 1
+</code></pre>
+<br>
+<h3>Exponential and Logarithmic</h3>
+<br>
+<table>
+<tr><th>Function</th><th>Description</th><th>Example</th></tr>
+<tr><th>`EXP(x)`</th><th>e raised to x</th><th>`EXP(1)` → 2.71828</th></tr>
+<tr><th>`LOG(x)`</th><th>Natural logarithm</th><th>`LOG(2.71828)` → 1</th></tr>
+<tr><th>`SQR(x)`</th><th>Square root</th><th>`SQR(16)` → 4</th></tr>
+</table>
+<br>
+<h3>Random Numbers</h3>
+<br>
+<h4>RND - Random Number</h4>
+<br>
+<pre><code>
+' Random number between 0 and 1
+10 PRINT RND
+
+' Random integer from 1 to 6 (dice)
+20 DICE = INT(RND * 6) + 1
+
+' Random integer from MIN to MAX
+30 NUM = INT(RND * (MAX - MIN + 1)) + MIN
+</code></pre>
+<br>
+<h4>RANDOMIZE - Seed Random Generator</h4>
+<br>
+<pre><code>
+' Seed with current time (different each run)
+10 RANDOMIZE
+
+' Seed with specific value (reproducible)
+20 RANDOMIZE 12345
+</code></pre>
+<br>
+<h3>TIMER - System Timer</h3>
+<br>
+<p>Returns seconds since midnight:</p>
+<br>
+<pre><code>
+10 START = TIMER
+20 FOR I = 1 TO 10000: NEXT I
+30 ELAPSED = TIMER - START
+40 PRINT "Time:"; ELAPSED; "seconds"
+</code></pre>
+<br>
+<p>---</p>
+<br>
+<h2 id="file-i/o">File I/O</h2>
+<br>
+<h3>OPEN Statement</h3>
+<br>
+<p>Open a file for reading or writing:</p>
+<br>
+<pre><code>
+' Open for output (writing)
+10 OPEN "DATA.TXT" FOR OUTPUT AS #1
+
+' Open for input (reading)
+20 OPEN "DATA.TXT" FOR INPUT AS #1
+
+' Open for append (add to end)
+30 OPEN "LOG.TXT" FOR APPEND AS #1
+</code></pre>
+<br>
+<p><strong>File Numbers:</strong></p>
+<li>Use #1, #2, #3, etc. to identify files</li>
+<li>Can have multiple files open simultaneously</li>
+<br>
+<h3>PRINT# - Write to File</h3>
+<br>
+<pre><code>
+10 OPEN "OUTPUT.TXT" FOR OUTPUT AS #1
+20 PRINT #1, "Hello, File!"
+30 PRINT #1, "Line 2"
+40 CLOSE #1
+</code></pre>
+<br>
+<h3>INPUT# - Read from File</h3>
+<br>
+<pre><code>
+10 OPEN "INPUT.TXT" FOR INPUT AS #1
+20 INPUT #1, A$
+30 INPUT #1, NUM
+40 CLOSE #1
+</code></pre>
+<br>
+<h3>LINE INPUT# - Read Line from File</h3>
+<br>
+<pre><code>
+10 OPEN "DATA.TXT" FOR INPUT AS #1
+20 WHILE NOT EOF(1)
+30   LINE INPUT #1, TEXT$
+40   PRINT TEXT$
+50 WEND
+60 CLOSE #1
+</code></pre>
+<br>
+<h3>CLOSE Statement</h3>
+<br>
+<p>Close open files:</p>
+<br>
+<pre><code>
+' Close specific file
+10 CLOSE #1
+
+' Close all files
+20 CLOSE
+</code></pre>
+<br>
+<h3>EOF - End of File</h3>
+<br>
+<p>Check if at end of file:</p>
+<br>
+<pre><code>
+10 OPEN "DATA.TXT" FOR INPUT AS #1
+20 WHILE NOT EOF(1)
+30   LINE INPUT #1, LINE$
+40   PRINT LINE$
+50 WEND
+60 CLOSE #1
+</code></pre>
+<br>
+<h3>File I/O Example</h3>
+<br>
+<p>Write and read a data file:</p>
+<br>
+<pre><code>
+' Write data
+10 OPEN "SCORES.DAT" FOR OUTPUT AS #1
+20 FOR I = 1 TO 5
+30   INPUT "Name"; NAME$
+40   INPUT "Score"; SCORE
+50   PRINT #1, NAME$; ","; SCORE
+60 NEXT I
+70 CLOSE #1
+
+' Read data
+100 OPEN "SCORES.DAT" FOR INPUT AS #1
+110 WHILE NOT EOF(1)
+120   INPUT #1, NAME$, SCORE
+130   PRINT NAME$; " scored "; SCORE
+140 WEND
+150 CLOSE #1
+</code></pre>
+<br>
+<p>---</p>
+<br>
+<h2 id="screen-control">Screen Control</h2>
+<br>
+<h3>CLS - Clear Screen</h3>
+<br>
+<pre><code>
+10 CLS  ' Clear entire screen
+</code></pre>
+<br>
+<h3>LOCATE - Position Cursor</h3>
+<br>
+<pre><code>
+' Move to row 10, column 20
+10 LOCATE 10, 20
+20 PRINT "Here!"
+
+' Just set row
+30 LOCATE 5
+40 PRINT "Row 5"
+</code></pre>
+<br>
+<p><strong>Screen coordinates:</strong></p>
+<li>Rows: 1-25 (text mode)</li>
+<li>Columns: 1-80 (text mode)</li>
+<li>Top-left is (1, 1)</li>
+<br>
+<h3>COLOR - Set Colors</h3>
+<br>
+<pre><code>
+' Set foreground color
+10 COLOR 14
+20 PRINT "Yellow text"
+
+' Set foreground and background
+30 COLOR 15, 1
+40 PRINT "White on blue"
+</code></pre>
+<br>
+<p><strong>Color Values (0-15):</strong></p>
+<br>
+<table>
+<tr><th>Value</th><th>Color</th><th>Value</th><th>Color</th></tr>
+<tr><th>0</th><th>Black</th><th>8</th><th>Dark Gray</th></tr>
+<tr><th>1</th><th>Blue</th><th>9</th><th>Light Blue</th></tr>
+<tr><th>2</th><th>Green</th><th>10</th><th>Light Green</th></tr>
+<tr><th>3</th><th>Cyan</th><th>11</th><th>Light Cyan</th></tr>
+<tr><th>4</th><th>Red</th><th>12</th><th>Light Red</th></tr>
+<tr><th>5</th><th>Magenta</th><th>13</th><th>Light Magenta</th></tr>
+<tr><th>6</th><th>Brown</th><th>14</th><th>Yellow</th></tr>
+<tr><th>7</th><th>Light Gray</th><th>15</th><th>White</th></tr>
+</table>
+<br>
+<h3>KEY - Function Key Display</h3>
+<br>
+<pre><code>
+' Turn off function key display at bottom
+10 KEY OFF
+
+' Turn on function key display
+20 KEY ON
+</code></pre>
+<br>
+<p>---</p>
+<br>
+<h2 id="graphics-commands">Graphics Commands</h2>
+<br>
+<h3>SCREEN - Set Graphics Mode</h3>
+<br>
+<pre><code>
+' Text mode (80x25)
+10 SCREEN 0
+
+' Low resolution graphics (320x200, 4 colors)
+20 SCREEN 1
+
+' Medium resolution (640x200, 2 colors)
+30 SCREEN 2
+
+' High resolution (640x350, 16 colors) - EGA
+40 SCREEN 9
+
+' VGA mode (640x480, 16 colors)
+50 SCREEN 12
+</code></pre>
+<br>
+<h3>PSET - Plot Pixel</h3>
+<br>
+<pre><code>
+' Plot pixel at (100, 100) in default color
+10 SCREEN 12
+20 PSET (100, 100)
+
+' Plot pixel with specific color
+30 PSET (150, 150), 14  ' Yellow pixel
+</code></pre>
+<br>
+<h3>LINE - Draw Line</h3>
+<br>
+<pre><code>
+' Draw line from (0,0) to (100,100)
+10 SCREEN 12
+20 LINE (0, 0)-(100, 100)
+
+' Draw line in specific color
+30 LINE (50, 50)-(150, 150), 12  ' Red line
+
+' Draw rectangle (box)
+40 LINE (10, 10)-(100, 50), 14, B
+
+' Draw filled rectangle
+50 LINE (120, 10)-(210, 50), 9, BF
+</code></pre>
+<br>
+<p><strong>LINE Flags:</strong></p>
+<li>`B` - Draw box (rectangle)</li>
+<li>`BF` - Draw filled box</li>
+<br>
+<h3>CIRCLE - Draw Circle</h3>
+<br>
+<pre><code>
+' Circle at (160, 100) with radius 50
+10 SCREEN 12
+20 CIRCLE (160, 100), 50
+
+' Circle with specific color
+30 CIRCLE (320, 240), 75, 12  ' Red circle
+
+' Draw ellipse (aspect ratio)
+40 CIRCLE (320, 240), 100, 14, , , 0.5
+
+' Draw arc (start and end angles in radians)
+50 CIRCLE (320, 240), 80, 10, 0, 3.14159
+</code></pre>
+<br>
+<h3>PAINT - Fill Area</h3>
+<br>
+<pre><code>
+' Fill area at (160, 100) with color 14
+10 SCREEN 12
+20 CIRCLE (160, 100), 50, 15
+30 PAINT (160, 100), 14, 15  ' Fill with yellow, border white
+</code></pre>
+<br>
+<p><strong>Parameters:</strong></p>
+<li>`(x, y)` - Starting point inside area</li>
+<li>`color` - Fill color</li>
+<li>`border` - Border color (stops filling at this color)</li>
+<br>
+<h3>Graphics Example - Simple Drawing</h3>
+<br>
+<pre><code>
+10 SCREEN 12
+20 CLS
+
+' Draw house
+30 LINE (100, 300)-(300, 300), 15    ' Bottom
+40 LINE (100, 300)-(100, 150), 15    ' Left wall
+50 LINE (300, 300)-(300, 150), 15    ' Right wall
+60 LINE (100, 150)-(300, 150), 15    ' Top
+70 LINE (100, 150)-(200, 50), 15     ' Roof left
+80 LINE (200, 50)-(300, 150), 15     ' Roof right
+
+' Draw door
+90 LINE (170, 300)-(230, 220), 12, BF
+
+' Draw window
+100 LINE (120, 180)-(160, 220), 14, B
+
+110 A$ = INPUT$(1)  ' Wait for keypress
+</code></pre>
+<br>
+<p>---</p>
+<br>
+<h2 id="sound-commands">Sound Commands</h2>
+<br>
+<h3>SOUND - Generate Tone</h3>
+<br>
+<pre><code>
+' Play frequency 440 Hz for 18.2 clock ticks (~1 second)
+10 SOUND 440, 18.2
+
+' Play middle C (261.63 Hz) for half second
+20 SOUND 262, 9
+
+' Silence (frequency 32 means pause)
+30 SOUND 32, 18.2
+</code></pre>
+<br>
+<p><strong>Parameters:</strong></p>
+<li>`frequency` - Hz (37-32767)</li>
+<li>`duration` - Clock ticks (18.2 per second)</li>
+<br>
+<h3>PLAY - Music Macro Language</h3>
+<br>
+<pre><code>
+' Play simple melody
+10 PLAY "CDEFGAB"
+
+' Play with octave and length
+20 PLAY "O4 L4 C D E F G A B O5 C"
+
+' Play scale with different lengths
+30 PLAY "L8 C L4 D L8 E F L2 G"
+</code></pre>
+<br>
+<p><strong>PLAY Command Syntax:</strong></p>
+<br>
+<table>
+<tr><th>Command</th><th>Description</th><th>Example</th></tr>
+<tr><th>`A-G`</th><th>Play note</th><th>`C`</th></tr>
+<tr><th>`#` or `+`</th><th>Sharp</th><th>`C#` or `C+`</th></tr>
+<tr><th>`-`</th><th>Flat</th><th>`D-`</th></tr>
+<tr><th>`O`n</th><th>Set octave (0-6)</th><th>`O4`</th></tr>
+<tr><th>`L`n</th><th>Set length (1-64)</th><th>`L4`</th></tr>
+<tr><th>`T`n</th><th>Set tempo (32-255)</th><th>`T120`</th></tr>
+<tr><th>`P`n</th><th>Pause</th><th>`P4`</th></tr>
+<tr><th>`>`</th><th>Increase octave</th><th>`>`</th></tr>
+<tr><th>`<`</th><th>Decrease octave</th><th>`<`</th></tr>
+<tr><th>`N`n</th><th>Play note by number</th><th>`N60`</th></tr>
+</table>
+<br>
+<p><strong>Note Lengths:</strong></p>
+<li>`L1` - Whole note</li>
+<li>`L2` - Half note</li>
+<li>`L4` - Quarter note</li>
+<li>`L8` - Eighth note</li>
+<li>`L16` - Sixteenth note</li>
+<br>
+<h3>BEEP - Simple Beep</h3>
+<br>
+<pre><code>
+10 BEEP  ' System beep sound
+</code></pre>
+<br>
+<h3>Sound Example</h3>
+<br>
+<pre><code>
+10 REM Simple melody
+20 PLAY "T120"         ' Set tempo
+30 PLAY "O4 L4"        ' Octave 4, quarter notes
+40 PLAY "C C G G A A L2 G"     ' Twinkle twinkle
+50 PLAY "L4 F F E E D D L2 C"  ' little star
+</code></pre>
+<br>
+<p>---</p>
+<br>
+<h2 id="system-commands">System Commands</h2>
+<br>
+<h3>DATA, READ, RESTORE</h3>
+<br>
+<p>Store and read data in program:</p>
+<br>
+<pre><code>
+10 FOR I = 1 TO 3
+20   READ NAME$, AGE
+30   PRINT NAME$; " is"; AGE; "years old"
+40 NEXT I
+50 END
+
+100 DATA "Alice", 25
+110 DATA "Bob", 30
+120 DATA "Carol", 28
+</code></pre>
+<br>
+<p><strong>RESTORE:</strong> Reset READ pointer:</p>
+<br>
+<pre><code>
+10 READ A, B, C
+20 RESTORE         ' Reset to beginning
+30 READ X, Y, Z
+40 PRINT A, X      ' Both print same value
+
+100 DATA 10, 20, 30
+</code></pre>
+<br>
+<h3>RANDOMIZE - Seed Random Generator</h3>
+<br>
+<pre><code>
+' Use system time (different each run)
+10 RANDOMIZE
+
+' Use specific seed (repeatable)
+20 RANDOMIZE 12345
+</code></pre>
+<br>
+<h3>SLEEP - Pause Execution</h3>
+<br>
+<pre><code>
+' Sleep for 2 seconds
+10 SLEEP 2
+
+' Sleep for 500 milliseconds (0.5 seconds)
+20 SLEEP 0.5
+</code></pre>
+<br>
+<h3>INKEY$ - Check for Keypress</h3>
+<br>
+<pre><code>
+' Non-blocking key check
+10 K$ = INKEY$
+20 IF K$ <> "" THEN PRINT "You pressed: "; K$
+
+' Wait for keypress
+30 WHILE INKEY$ = "": WEND
+</code></pre>
+<br>
+<h3>INPUT$ - Read N Characters</h3>
+<br>
+<pre><code>
+' Read exactly 1 character (wait if needed)
+10 A$ = INPUT$(1)
+20 PRINT "You pressed: "; A$
+
+' Read 5 characters
+30 CODE$ = INPUT$(5)
+</code></pre>
+<br>
+<h3>DATE$ and TIME$ - System Date/Time</h3>
+<br>
+<pre><code>
+' Get current date
+10 PRINT "Date: "; DATE$
+
+' Get current time
+20 PRINT "Time: "; TIME$
+</code></pre>
+<br>
+<p><strong>Format:</strong></p>
+<li>DATE$: `MM-DD-YYYY`</li>
+<li>TIME$: `HH:MM:SS`</li>
+<br>
+<p>---</p>
+<br>
+<h2 id="complete-keyword-reference">Complete Keyword Reference</h2>
+<br>
+<h3>Control Flow Keywords</h3>
+<br>
+<table>
+<tr><th>Keyword</th><th>Description</th></tr>
+<tr><th>`IF...THEN...ELSE...END IF`</th><th>Conditional execution</th></tr>
+<tr><th>`FOR...TO...STEP...NEXT`</th><th>Counted loop</th></tr>
+<tr><th>`WHILE...WEND`</th><th>Loop while condition true</th></tr>
+<tr><th>`DO...LOOP`</th><th>Loop with various conditions</th></tr>
+<tr><th>`GOTO`</th><th>Jump to line number</th></tr>
+<tr><th>`GOSUB...RETURN`</th><th>Call subroutine</th></tr>
+<tr><th>`ON...GOTO`</th><th>Computed goto</th></tr>
+<tr><th>`ON...GOSUB`</th><th>Computed gosub</th></tr>
+<tr><th>`END`</th><th>Terminate program</th></tr>
+</table>
+<br>
+<h3>Input/Output Keywords</h3>
+<br>
+<table>
+<tr><td>Keyword</td><td>Description</td></tr>
+<tr><th>`PRINT`</th><th>Display output</th></tr>
+<tr><th>`INPUT`</th><th>Get user input</th></tr>
+<tr><th>`LINE INPUT`</th><th>Get line of input</th></tr>
+<tr><th>`OPEN`</th><th>Open file</th></tr>
+<tr><th>`CLOSE`</th><th>Close file</th></tr>
+<tr><th>`PRINT #`</th><th>Write to file</th></tr>
+<tr><th>`INPUT #`</th><th>Read from file</th></tr>
+<tr><th>`LINE INPUT #`</th><th>Read line from file</th></tr>
+</table>
+<br>
+<h3>Data Keywords</h3>
+<br>
+<table>
+<tr><td>Keyword</td><td>Description</td></tr>
+<tr><th>`DIM`</th><th>Declare array</th></tr>
+<tr><th>`DATA`</th><th>Define data values</th></tr>
+<tr><th>`READ`</th><th>Read data values</th></tr>
+<tr><th>`RESTORE`</th><th>Reset data pointer</th></tr>
+<tr><th>`LET`</th><th>Assign variable (optional)</th></tr>
+</table>
+<br>
+<h3>Subroutine Keywords</h3>
+<br>
+<table>
+<tr><td>Keyword</td><td>Description</td></tr>
+<tr><th>`SUB...END SUB`</th><th>Define subroutine</th></tr>
+<tr><th>`FUNCTION...END FUNCTION`</th><th>Define function</th></tr>
+<tr><th>`CALL`</th><th>Call subroutine</th></tr>
+<tr><th>`DEF FN`</th><th>Define single-line function</th></tr>
+</table>
+<br>
+<h3>Screen Control Keywords</h3>
+<br>
+<table>
+<tr><td>Keyword</td><td>Description</td></tr>
+<tr><th>`CLS`</th><th>Clear screen</th></tr>
+<tr><th>`LOCATE`</th><th>Position cursor</th></tr>
+<tr><th>`COLOR`</th><th>Set text colors</th></tr>
+<tr><th>`KEY`</th><th>Control function key display</th></tr>
+</table>
+<br>
+<h3>Graphics Keywords</h3>
+<br>
+<table>
+<tr><td>Keyword</td><td>Description</td></tr>
+<tr><th>`SCREEN`</th><th>Set graphics mode</th></tr>
+<tr><th>`PSET`</th><th>Plot pixel</th></tr>
+<tr><th>`LINE`</th><th>Draw line or box</th></tr>
+<tr><th>`CIRCLE`</th><th>Draw circle/ellipse/arc</th></tr>
+<tr><th>`PAINT`</th><th>Fill area</th></tr>
+</table>
+<br>
+<h3>Sound Keywords</h3>
+<br>
+<table>
+<tr><td>Keyword</td><td>Description</td></tr>
+<tr><th>`SOUND`</th><th>Generate tone</th></tr>
+<tr><th>`PLAY`</th><th>Play music macro</th></tr>
+<tr><th>`BEEP`</th><th>System beep</th></tr>
+</table>
+<br>
+<h3>System Keywords</h3>
+<br>
+<table>
+<tr><td>Keyword</td><td>Description</td></tr>
+<tr><th>`RANDOMIZE`</th><th>Seed random generator</th></tr>
+<tr><th>`SLEEP`</th><th>Pause execution</th></tr>
+<tr><th>`REM`</th><th>Comment</th></tr>
+</table>
+<br>
+<h3>String Functions</h3>
+<br>
+<table>
+<tr><td>Function</td><td>Description</td></tr>
+<tr><th>`LEN(s$)`</th><th>String length</th></tr>
+<tr><th>`LEFT$(s$, n)`</th><th>Left substring</th></tr>
+<tr><th>`RIGHT$(s$, n)`</th><th>Right substring</th></tr>
+<tr><th>`MID$(s$, start, len)`</th><th>Middle substring</th></tr>
+<tr><th>`INSTR(s1$, s2$)`</th><th>Find substring</th></tr>
+<tr><th>`CHR$(n)`</th><th>ASCII to character</th></tr>
+<tr><th>`ASC(s$)`</th><th>Character to ASCII</th></tr>
+<tr><th>`STR$(n)`</th><th>Number to string</th></tr>
+<tr><th>`VAL(s$)`</th><th>String to number</th></tr>
+<tr><th>`UCASE$(s$)`</th><th>Convert to uppercase</th></tr>
+<tr><th>`LCASE$(s$)`</th><th>Convert to lowercase</th></tr>
+<tr><th>`SPACE$(n)`</th><th>Generate spaces</th></tr>
+<tr><th>`STRING$(n, c$)`</th><th>Repeat character</th></tr>
+</table>
+<br>
+<h3>Math Functions</h3>
+<br>
+<table>
+<tr><td>Function</td><td>Description</td></tr>
+<tr><th>`ABS(x)`</th><th>Absolute value</th></tr>
+<tr><th>`SGN(x)`</th><th>Sign of number</th></tr>
+<tr><th>`INT(x)`</th><th>Integer part</th></tr>
+<tr><th>`FIX(x)`</th><th>Truncate decimal</th></tr>
+<tr><th>`CINT(x)`</th><th>Round to integer</th></tr>
+<tr><th>`SIN(x)`</th><th>Sine</th></tr>
+<tr><th>`COS(x)`</th><th>Cosine</th></tr>
+<tr><th>`TAN(x)`</th><th>Tangent</th></tr>
+<tr><th>`ATN(x)`</th><th>Arctangent</th></tr>
+<tr><th>`EXP(x)`</th><th>Exponential</th></tr>
+<tr><th>`LOG(x)`</th><th>Natural logarithm</th></tr>
+<tr><th>`SQR(x)`</th><th>Square root</th></tr>
+<tr><th>`RND`</th><th>Random number</th></tr>
+</table>
+<br>
+<h3>Other Functions</h3>
+<br>
+<table>
+<tr><td>Function</td><td>Description</td></tr>
+<tr><th>`TIMER`</th><th>Seconds since midnight</th></tr>
+<tr><th>`INKEY$`</th><th>Check for keypress</th></tr>
+<tr><th>`INPUT$(n)`</th><th>Read N characters</th></tr>
+<tr><th>`DATE$`</th><th>Current date</th></tr>
+<tr><th>`TIME$`</th><th>Current time</th></tr>
+<tr><th>`EOF(n)`</th><th>End of file check</th></tr>
+<tr><th>`TAB(n)`</th><th>Tab to column</th></tr>
+</table>
+<br>
+<p>---</p>
+<br>
+<h2 id="example-programs">Example Programs</h2>
+<br>
+<h3>Example 1: Number Guessing Game</h3>
+<br>
+<pre><code>
+10 REM Number Guessing Game
+20 CLS
+30 RANDOMIZE
+40 SECRET = INT(RND * 100) + 1
+50 TRIES = 0
+60 PRINT "I'm thinking of a number between 1 and 100"
+70 PRINT
+
+100 INPUT "Your guess"; GUESS
+110 TRIES = TRIES + 1
+
+120 IF GUESS < SECRET THEN PRINT "Too low!": GOTO 100
+130 IF GUESS > SECRET THEN PRINT "Too high!": GOTO 100
+
+140 PRINT "Correct! You got it in"; TRIES; "tries!"
+150 END
+</code></pre>
+<br>
+<h3>Example 2: Temperature Converter</h3>
+<br>
+<pre><code>
+10 REM Temperature Converter
+20 CLS
+30 PRINT "Temperature Converter"
+40 PRINT "===================="
+50 PRINT
+60 PRINT "1. Fahrenheit to Celsius"
+70 PRINT "2. Celsius to Fahrenheit"
+80 PRINT
+90 INPUT "Choice (1 or 2)"; CHOICE
+
+100 IF CHOICE = 1 THEN GOSUB 1000
+110 IF CHOICE = 2 THEN GOSUB 2000
+120 END
+
+1000 REM Fahrenheit to Celsius
+1010 INPUT "Enter Fahrenheit"; F
+1020 C = (F - 32) * 5 / 9
+1030 PRINT F; "F ="; C; "C"
+1040 RETURN
+
+2000 REM Celsius to Fahrenheit
+2010 INPUT "Enter Celsius"; C
+2020 F = C * 9 / 5 + 32
+2030 PRINT C; "C ="; F; "F"
+2040 RETURN
+</code></pre>
+<br>
+<h3>Example 3: Simple Database</h3>
+<br>
+<pre><code>
+10 REM Simple Contact Database
+20 DIM NAMES$(100), PHONES$(100)
+30 COUNT = 0
+
+100 CLS
+110 PRINT "Contact Database"
+120 PRINT "================"
+130 PRINT "1. Add Contact"
+140 PRINT "2. List All"
+150 PRINT "3. Search"
+160 PRINT "4. Quit"
+170 PRINT
+180 INPUT "Choice"; CHOICE
+190 ON CHOICE GOSUB 1000, 2000, 3000, 9000
+200 GOTO 100
+
+1000 REM Add Contact
+1010 IF COUNT >= 100 THEN PRINT "Database full!": RETURN
+1020 COUNT = COUNT + 1
+1030 INPUT "Name"; NAMES$(COUNT)
+1040 INPUT "Phone"; PHONES$(COUNT)
+1050 PRINT "Added!"
+1060 SLEEP 1
+1070 RETURN
+
+2000 REM List All
+2010 IF COUNT = 0 THEN PRINT "No contacts!": SLEEP 1: RETURN
+2020 FOR I = 1 TO COUNT
+2030   PRINT NAMES$(I); " - "; PHONES$(I)
+2040 NEXT I
+2050 PRINT: PRINT "Press any key...";
+2060 A$ = INPUT$(1)
+2070 RETURN
+
+3000 REM Search
+3010 INPUT "Search for"; SEARCH$
+3020 SEARCH$ = UCASE$(SEARCH$)
+3030 FOUND = 0
+3040 FOR I = 1 TO COUNT
+3050   IF INSTR(UCASE$(NAMES$(I)), SEARCH$) > 0 THEN
+3060     PRINT NAMES$(I); " - "; PHONES$(I)
+3070     FOUND = 1
+3080   END IF
+3090 NEXT I
+3100 IF FOUND = 0 THEN PRINT "Not found!"
+3110 PRINT: PRINT "Press any key...";
+3120 A$ = INPUT$(1)
+3130 RETURN
+
+9000 REM Quit
+9010 END
+</code></pre>
+<br>
+<h3>Example 4: Graphics Demo</h3>
+<br>
+<pre><code>
+10 REM Graphics Demo - Bouncing Ball
+20 SCREEN 12
+30 CLS
+
+40 X = 320: Y = 240       ' Starting position
+50 DX = 5: DY = 3         ' Velocity
+60 RADIUS = 20
+
+100 REM Main Loop
+110 CIRCLE (X, Y), RADIUS, 0    ' Erase old position
+120 X = X + DX
+130 Y = Y + DY
+
+140 REM Bounce off edges
+150 IF X - RADIUS < 0 OR X + RADIUS > 639 THEN DX = -DX
+160 IF Y - RADIUS < 0 OR Y + RADIUS > 479 THEN DY = -DY
+
+170 CIRCLE (X, Y), RADIUS, 15   ' Draw new position
+180 PAINT (X, Y), 14, 15        ' Fill with yellow
+
+190 FOR DELAY = 1 TO 1000: NEXT DELAY  ' Slow down
+
+200 K$ = INKEY$
+210 IF K$ = "" THEN GOTO 110    ' Continue if no key pressed
+
+220 SCREEN 0
+230 END
+</code></pre>
+<br>
+<h3>Example 5: File Processing</h3>
+<br>
+<pre><code>
+10 REM Save and Load High Scores
+20 DIM NAMES$(10), SCORES(10)
+30 NUMSCORES = 0
+
+100 GOSUB 5000  ' Load existing scores
+
+200 CLS
+210 PRINT "High Score Manager"
+220 PRINT "=================="
+230 PRINT "1. Add Score"
+240 PRINT "2. View Scores"
+250 PRINT "3. Save and Quit"
+260 INPUT "Choice"; CHOICE
+270 ON CHOICE GOSUB 1000, 2000, 3000
+280 GOTO 200
+
+1000 REM Add Score
+1010 IF NUMSCORES >= 10 THEN PRINT "List full!": RETURN
+1020 NUMSCORES = NUMSCORES + 1
+1030 INPUT "Name"; NAMES$(NUMSCORES)
+1040 INPUT "Score"; SCORES(NUMSCORES)
+1050 RETURN
+
+2000 REM View Scores
+2010 FOR I = 1 TO NUMSCORES
+2020   PRINT I; ". "; NAMES$(I); " - "; SCORES(I)
+2030 NEXT I
+2040 PRINT: INPUT "Press Enter"; DUMMY$
+2050 RETURN
+
+3000 REM Save and Quit
+3010 GOSUB 6000
+3020 END
+
+5000 REM Load Scores
+5010 ON ERROR GOTO 5100
+5020 OPEN "SCORES.DAT" FOR INPUT AS #1
+5030 INPUT #1, NUMSCORES
+5040 FOR I = 1 TO NUMSCORES
+5050   INPUT #1, NAMES$(I), SCORES(I)
+5060 NEXT I
+5070 CLOSE #1
+5080 RETURN
+5100 NUMSCORES = 0  ' File doesn't exist yet
+5110 RETURN
+
+6000 REM Save Scores
+6010 OPEN "SCORES.DAT" FOR OUTPUT AS #1
+6020 PRINT #1, NUMSCORES
+6030 FOR I = 1 TO NUMSCORES
+6040   PRINT #1, NAMES$(I); ","; SCORES(I)
+6050 NEXT I
+6060 CLOSE #1
+6070 RETURN
+</code></pre>
+<br>
+<p>---</p>
+<br>
+<h2 id="error-messages-and-troubleshooting">Error Messages and Troubleshooting</h2>
+<br>
+<h3>Common Compile Errors</h3>
+<br>
+<h4>"Lexer error: Unexpected character"</h4>
+<p><strong>Cause:</strong> Invalid character in source code  </p>
+<p><strong>Solution:</strong> Check for special characters, ensure proper quotes</p>
+<br>
+<h4>"Parser error: Expected..."</h4>
+<p><strong>Cause:</strong> Syntax error in BASIC code  </p>
+<p><strong>Solution:</strong> Check syntax, ensure all keywords spelled correctly</p>
+<br>
+<h4>"Undefined variable"</h4>
+<p><strong>Cause:</strong> Variable used before declaration (in array context)  </p>
+<p><strong>Solution:</strong> Use DIM to declare arrays before use</p>
+<br>
+<h4>"Type mismatch"</h4>
+<p><strong>Cause:</strong> String assigned to numeric variable or vice versa  </p>
+<p><strong>Solution:</strong> Ensure variable types match (use $ for strings)</p>
+<br>
+<h3>Common Runtime Errors</h3>
+<br>
+<h4>"Subscript out of range"</h4>
+<p><strong>Cause:</strong> Array index outside declared bounds  </p>
+<p><strong>Solution:</strong> Check array size in DIM statement, verify loop bounds</p>
+<br>
+<h4>"Division by zero"</h4>
+<p><strong>Cause:</strong> Dividing by zero  </p>
+<p><strong>Solution:</strong> Check divisor before division</p>
+<br>
+<h4>"File not found"</h4>
+<p><strong>Cause:</strong> Trying to open non-existent file  </p>
+<p><strong>Solution:</strong> Verify file path and name, use error handling</p>
+<br>
+<h4>"Out of string space"</h4>
+<p><strong>Cause:</strong> Too many string operations  </p>
+<p><strong>Solution:</strong> Reduce string concatenations, clear unused strings</p>
+<br>
+<h3>Compiler Warnings</h3>
+<br>
+<h4>"Unused variable"</h4>
+<p><strong>Cause:</strong> Variable declared but never used  </p>
+<p><strong>Solution:</strong> Remove unused variables or use them</p>
+<br>
+<h4>"Format warning"</h4>
+<p><strong>Cause:</strong> Type mismatch in printf (usually internal)  </p>
+<p><strong>Solution:</strong> Usually safe to ignore, but report if causing issues</p>
+<br>
+<h3>Best Practices</h3>
+<br>
+<p>1. <strong>Always use DIM for arrays</strong></p>
+<p>   ```basic</p>
+<p>   10 DIM SCORES(100)  ' Good</p>
+<p>   20 SCORES(50) = 100 ' Bad (without DIM)</p>
+<p>   ```</p>
+<br>
+<p>2. <strong>Close files when done</strong></p>
+<p>   ```basic</p>
+<p>   10 OPEN "DATA.TXT" FOR INPUT AS #1</p>
+<p>   20 ' ... process file ...</p>
+<p>   30 CLOSE #1  ' Always close!</p>
+<p>   ```</p>
+<br>
+<p>3. <strong>Use meaningful variable names</strong></p>
+<p>   ```basic</p>
+<p>   10 PLAYER_SCORE = 100    ' Good</p>
+<p>   20 X = 100               ' Less clear</p>
+<p>   ```</p>
+<br>
+<p>4. <strong>Comment your code</strong></p>
+<p>   ```basic</p>
+<p>   10 REM Calculate player score bonus</p>
+<p>   20 BONUS = SCORE * 0.1</p>
+<p>   ```</p>
+<br>
+<p>5. <strong>Initialize variables</strong></p>
+<p>   ```basic</p>
+<p>   10 COUNT = 0    ' Good - explicit initialization</p>
+<p>   20 TOTAL = 0</p>
+<p>   ```</p>
+<br>
+<p>6. <strong>Use structured control flow</strong></p>
+<p>   ```basic</p>
+<p>   ' Good - use FOR loop</p>
+<p>   10 FOR I = 1 TO 10</p>
+<p>   20   PRINT I</p>
+<p>   30 NEXT I</p>
+<br>
+<p>   ' Avoid - excessive GOTO</p>
+<p>   10 I = 1</p>
+<p>   20 PRINT I</p>
+<p>   30 I = I + 1</p>
+<p>   40 IF I <= 10 THEN GOTO 20</p>
+<p>   ```</p>
+<br>
+<p>---</p>
+<br>
+<h2 id="appendix:-quick-reference-card">Appendix: Quick Reference Card</h2>
+<br>
+<h3>Essential Commands</h3>
+<br>
+<pre><code>
+' Output
+PRINT "text"
+PRINT variable
+
+' Input
+INPUT variable
+INPUT "prompt"; variable
+LINE INPUT text$
+
+' Variables
+LET variable = expression  ' LET is optional
+variable = expression
+
+' Arrays
+DIM array(size)
+array(index) = value
+
+' Control Flow
+IF condition THEN statement
+IF condition THEN
+  statements
+END IF
+
+FOR variable = start TO end STEP increment
+  statements
+NEXT variable
+
+WHILE condition
+  statements
+WEND
+
+' Subroutines
+GOSUB line_number
+RETURN
+</code></pre>
+<br>
+<h3>Common Patterns</h3>
+<br>
+<pre><code>
+' Read file line by line
+OPEN "file.txt" FOR INPUT AS #1
+WHILE NOT EOF(1)
+  LINE INPUT #1, line$
+  ' process line$
+WEND
+CLOSE #1
+
+' Menu system
+DO
+  PRINT "1. Option 1"
+  PRINT "2. Option 2"
+  INPUT choice
+  IF choice = 1 THEN GOSUB 1000
+  IF choice = 2 THEN GOSUB 2000
+LOOP UNTIL choice = 0
+
+' Sort array
+FOR i = 0 TO n - 1
+  FOR j = i + 1 TO n
+    IF array(i) > array(j) THEN
+      temp = array(i)
+      array(i) = array(j)
+      array(j) = temp
+    END IF
+  NEXT j
+NEXT i
+</code></pre>
+<br>
+<p>---</p>
+<br>
+<h2 id="index">Index</h2>
+<br>
+<table>
+<tr><th>[B](#b)</th><th>[C](#c)</th><th>[D](#d)</th><th>[E](#e)</th><th>[F](#f)</th><th>[G](#g)</th><th>[H](#h)</th><th>[I](#i)</th><th>[K](#k)</th><th>[L](#l)</th><th>[M](#m)</th><th>[N](#n)</th><th>[O](#o)</th><th>[P](#p)</th><th>[R](#r)</th><th>[S](#s)</th><th>[T](#t)</th><th>[U](#u)</th><th>[V](#v)</th></tr>
+</table>
+<br>
+<h3>A</h3>
+<li>ABS function</li>
+<li>AND operator</li>
+<li>Arrays</li>
+<li>ASC function</li>
+<li>ATN function</li>
+<br>
+<h3>B</h3>
+<li>BEEP statement</li>
+<li>Binary operators</li>
+<br>
+<h3>C</h3>
+<li>CALL statement</li>
+<li>CHR$ function</li>
+<li>CIRCLE statement</li>
+<li>CINT function</li>
+<li>CLOSE statement</li>
+<li>CLS statement</li>
+<li>COLOR statement</li>
+<li>Comments (REM)</li>
+<li>Control flow</li>
+<li>COS function</li>
+<br>
+<h3>D</h3>
+<li>DATA statement</li>
+<li>DATE$ function</li>
+<li>DEF FN statement</li>
+<li>DIM statement</li>
+<li>DO...LOOP</li>
+<br>
+<h3>E</h3>
+<li>END statement</li>
+<li>EOF function</li>
+<li>EXP function</li>
+<br>
+<h3>F</h3>
+<li>File I/O</li>
+<li>FIX function</li>
+<li>FOR...NEXT loop</li>
+<li>FUNCTION...END FUNCTION</li>
+<br>
+<h3>G</h3>
+<li>GOSUB statement</li>
+<li>GOTO statement</li>
+<li>Graphics</li>
+<br>
+<h3>I</h3>
+<li>IF...THEN...ELSE</li>
+<li>INPUT statement</li>
+<li>INPUT$ function</li>
+<li>INKEY$ function</li>
+<li>INSTR function</li>
+<li>INT function</li>
+<br>
+<h3>K</h3>
+<li>KEY statement</li>
+<br>
+<h3>L</h3>
+<li>LCASE$ function</li>
+<li>LEFT$ function</li>
+<li>LEN function</li>
+<li>LET statement</li>
+<li>LINE statement (graphics)</li>
+<li>LINE INPUT statement</li>
+<li>LOCATE statement</li>
+<li>LOG function</li>
+<li>Loops</li>
+<br>
+<h3>M</h3>
+<li>Math functions</li>
+<li>MID$ function</li>
+<li>MOD operator</li>
+<br>
+<h3>N</h3>
+<li>NEXT statement</li>
+<li>NOT operator</li>
+<br>
+<h3>O</h3>
+<li>ON...GOSUB statement</li>
+<li>ON...GOTO statement</li>
+<li>OPEN statement</li>
+<li>Operators</li>
+<li>OR operator</li>
+<br>
+<h3>P</h3>
+<li>PAINT statement</li>
+<li>PLAY statement</li>
+<li>PRINT statement</li>
+<li>PSET statement</li>
+<br>
+<h3>R</h3>
+<li>RANDOMIZE statement</li>
+<li>READ statement</li>
+<li>REM statement</li>
+<li>RESTORE statement</li>
+<li>RETURN statement</li>
+<li>RIGHT$ function</li>
+<li>RND function</li>
+<br>
+<h3>S</h3>
+<li>SCREEN statement</li>
+<li>SGN function</li>
+<li>SIN function</li>
+<li>SLEEP statement</li>
+<li>SOUND statement</li>
+<li>SPACE$ function</li>
+<li>SQR function</li>
+<li>STR$ function</li>
+<li>STRING$ function</li>
+<li>String functions</li>
+<li>SUB...END SUB</li>
+<br>
+<h3>T</h3>
+<li>TAN function</li>
+<li>TIME$ function</li>
+<li>TIMER function</li>
+<br>
+<h3>U</h3>
+<li>UCASE$ function</li>
+<br>
+<h3>V</h3>
+<li>VAL function</li>
+<li>Variables</li>
+<br>
+<h3>W</h3>
+<li>WEND statement</li>
+<li>WHILE statement</li>
+<br>
+<p>---</p>
+<br>
+<h2 id="about-this-manual">About This Manual</h2>
+<br>
+<p><strong>RB BASIC Language Manual</strong>  </p>
+<p>Version 2.0  </p>
+<p>© 2025 Ronen Blue  </p>
+<br>
+<p>This manual covers the RB BASIC compiler v2.0 Enhanced Edition.</p>
+<br>
+<p>For updates, bug reports, and additional resources, visit the project repository or contact the developer.</p>
+<br>
+<h3>Acknowledgments</h3>
+<br>
+<p>RB BASIC is inspired by:</p>
+<li>GW-BASIC (Microsoft)</li>
+<li>QBasic (Microsoft)</li>
+<li>QuickBASIC (Microsoft)</li>
+<li>FreeBASIC</li>
+<li>QB64</li>
+<br>
+<p>Special thanks to the BASIC programming community for decades of innovation and creativity.</p>
+<br>
+<p>---</p>
+<br>
+<p><strong>End of Manual</strong></p>
+<br>
+
+    </div>
+</body>
+</html>

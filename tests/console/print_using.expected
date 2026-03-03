@@ -1,0 +1,16 @@
+=== PRINT USING Tests ===
+
+Test 1: Numeric formatting
+  3.14
+ 42.50
+12345
+
+Test 2: Dollar format
+$ 99.95
+$1234.56
+
+Test 3: Negative numbers
+-42.50
+   0
+
+All PRINT USING tests passed!

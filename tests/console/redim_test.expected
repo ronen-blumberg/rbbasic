@@ -1,0 +1,22 @@
+=== REDIM/ERASE Tests ===
+
+Original array:
+arr(0) =0
+arr(1) =10
+arr(2) =20
+arr(3) =30
+arr(4) =40
+arr(5) =50
+
+After REDIM arr(10):
+arr(0) =0 (should be 0 - data cleared)
+arr(8) =88 (should be 88)
+
+After ERASE: array freed
+
+DIM SHARED scores:
+scores(1) =100
+scores(2) =95
+scores(3) =87
+
+All REDIM/ERASE tests passed!

@@ -1,0 +1,13 @@
+=== SUB/FUNCTION Tests ===
+
+----------------
+After SUB call
+----------------
+
+FNDouble(8) =16
+FNCube(3) =27
+FNCircleArea(5) =78.53
+
+Running total:60
+
+All SUB/FUNCTION tests passed!

@@ -67,6 +67,11 @@ Lexer::Lexer(const std::string& src)
     keywords["CIRCLE"] = TokenType::CIRCLE;
     keywords["PAINT"] = TokenType::PAINT;
     keywords["POINT"] = TokenType::POINT;
+    keywords["DRAW"] = TokenType::DRAW;
+    keywords["PALETTE"] = TokenType::PALETTE_KW;
+    keywords["VIEW"] = TokenType::VIEW_KW;
+    keywords["WINDOW"] = TokenType::WINDOW_KW;
+    keywords["PCOPY"] = TokenType::PCOPY;
     
     // Sound Commands
     keywords["SOUND"] = TokenType::SOUND;
@@ -76,10 +81,46 @@ Lexer::Lexer(const std::string& src)
     keywords["RANDOMIZE"] = TokenType::RANDOMIZE;
     keywords["BEEP"] = TokenType::BEEP;
     keywords["SLEEP"] = TokenType::SLEEP;
+    keywords["SHELL"] = TokenType::SHELL_KW;
+    keywords["SYSTEM"] = TokenType::SYSTEM_KW;
+    keywords["POKE"] = TokenType::POKE;
     
     // Advanced Control Flow
     keywords["ON"] = TokenType::ON;
-    
+    keywords["SELECT"] = TokenType::SELECT;
+    keywords["CASE"] = TokenType::CASE;
+    keywords["EXIT"] = TokenType::EXIT;
+
+    // Declarations
+    keywords["CONST"] = TokenType::CONST_KW;
+    keywords["DECLARE"] = TokenType::DECLARE;
+    keywords["SHARED"] = TokenType::SHARED;
+    keywords["STATIC"] = TokenType::STATIC;
+    keywords["SWAP"] = TokenType::SWAP;
+    keywords["REDIM"] = TokenType::REDIM;
+    keywords["PRESERVE"] = TokenType::PRESERVE;
+    keywords["ERASE"] = TokenType::ERASE;
+
+    // Phase 2: Error Handling & File I/O
+    keywords["RESUME"] = TokenType::RESUME;
+    keywords["WRITE"] = TokenType::WRITE_KW;
+    keywords["SEEK"] = TokenType::SEEK_KW;
+    keywords["GET"] = TokenType::GET_KW;
+    keywords["PUT"] = TokenType::PUT_KW;
+
+    // Phase 3: User-Defined Types
+    keywords["TYPE"] = TokenType::TYPE_KW;
+
+    // Phase 6: QB64 Extensions
+    keywords["_DISPLAY"] = TokenType::QB_DISPLAY;
+    keywords["_LIMIT"] = TokenType::QB_LIMIT;
+    keywords["_FREEIMAGE"] = TokenType::QB_FREEIMAGE;
+    keywords["_PUTIMAGE"] = TokenType::QB_PUTIMAGE;
+    keywords["_PRINTSTRING"] = TokenType::QB_PRINTSTRING;
+    keywords["_SNDPLAY"] = TokenType::QB_SNDPLAY;
+    keywords["_SNDSTOP"] = TokenType::QB_SNDSTOP;
+    keywords["_SNDVOL"] = TokenType::QB_SNDVOL;
+
     // User Functions
     keywords["DEF"] = TokenType::DEF;
     keywords["FN"] = TokenType::FN;
@@ -178,7 +219,17 @@ Token Lexer::make_identifier() {
         id_str += std::toupper(current_char);
         advance();
     }
-    
+
+    // Handle dot member access (person.name becomes single identifier)
+    while (current_char == '.' && pos + 1 < source.size() && std::isalpha(source[pos + 1])) {
+        id_str += '.';
+        advance();
+        while (std::isalnum(current_char) || current_char == '_') {
+            id_str += std::toupper(current_char);
+            advance();
+        }
+    }
+
     // Handle "END IF", "END SUB", "END FUNCTION", "LINE INPUT"
     if (id_str == "END" && (current_char == ' ' || current_char == '\t')) {
         size_t saved_pos = pos;
@@ -199,6 +250,10 @@ Token Lexer::make_identifier() {
             return Token(TokenType::END_SUB, "END SUB", line, start_col);
         } else if (next_word == "FUNCTION") {
             return Token(TokenType::END_FUNCTION, "END FUNCTION", line, start_col);
+        } else if (next_word == "SELECT") {
+            return Token(TokenType::END_SELECT, "END SELECT", line, start_col);
+        } else if (next_word == "TYPE") {
+            return Token(TokenType::END_TYPE, "END TYPE", line, start_col);
         } else {
             // Restore position
             pos = saved_pos;

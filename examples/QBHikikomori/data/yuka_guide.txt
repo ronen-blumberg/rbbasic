@@ -1,0 +1,109 @@
+g:WELCOME TO YUKA-YUKA CHAT! PRESS 'q' TO QUIT CONVERSATION
+y:You(guest118)
+c:yuka_guide142
+s:are>am|are
+s:am>are
+s:were>was|were
+s:was>were
+s:you>I|me
+s:I>you
+s:your>my
+s:my>your
+s:I've>you've
+s:you've>I've
+s:I'm>you're
+s:you're>I'm
+s:me>you
+
+r:hello i'm the guide of the yuka chat support group feel free to chat with us
+r:hello and welcome please tell us abit about yourself
+r:hello and welcome to yuka chat support group
+k:hi
+k:hello
+k:what's up
+k:whats up
+
+r:don't worry we are not here to judge you we all are like you and understand what you are going through
+r:it's okay no one here will judge you we all here are struggle
+k:don't like support groups
+k:not good at support groups
+
+r:my name is Stephan i'm 45 years old and i have been isolated for 18 years in my house i'm an ex-hikikomori and now i help others here at the yuka centre
+k:who are you
+
+r:you must remember that you are not truly alone you have your family and dear ones that care about you
+r:don't lose hope there is a way out from isolation back into society 
+r:feel free to share your feelings with us we are here to support you
+r:i hope in this chat you can feel less alone and comfortable to tell us more about you
+r:please tell us more about you
+r:we understand you cause we feel the same way... would you like to tell us more?
+k:i'm alone
+k:i am alone
+k:i feel alone
+k:i'm feeling lonely
+k:i am feeling lonely
+
+
+r:it is impotent that you remember that you are not alone and there are people who care about you
+r:don't lose hope there is a way out from isolation back into society 
+r:my favorite quote is "the only thing we have to fear is fear itself"
+k:i'm scared
+k:i am scared
+k:i fear
+k:i worry
+
+r:making the first step is impotent but without professional help it is hard to go back to society that's why there are the yuka centres you can use 
+r:you have to start somewhere and what is a better place to start then the nearest yuka-yuka center?
+r:we encourage you to try and go to the yuka-yuka center near you you will find there nice good people with good intentions
+r:going to a offline support group for hikikomoris could be a good first step to start and coming out to the world
+k:yuka
+k:help
+k:outside
+
+
+r:when i was isolated i my sleep was irregular but i fixed it thank to will power
+r:it is importent to sleep at regulars hours at night time if you plan to go back into society
+r:here it's evening where i am i sleep at nights at regular hours
+k:time
+k:am
+k:pm
+k:morning
+k:day
+k:evening
+k:night
+k:sleep
+
+
+r:when you will be ready i'm sure the yuka staff can help you find a job and earn money as income that why you will become independent
+k:job
+k:work
+k:money
+
+r:no point in grieving over lost friends and lost girlfriends once you will go out to the world people will want to be your friend once more and love is possible outside of the walls of the room... don't lose hope :)
+r:friends that came and gone well they are no real family and they got their own lives but blood is thicker then water i guess
+r:i would not succeed getting out of years of isolation with out my family and parent's support their love saved me
+r:there is a lot of stigma around being hikikomori people think we are different or dangerous or mentally ill or parasitic but that's not true at all remember you are cared and loved by your family or by someone
+r:family support is critical for getting out of isolation
+k:mom
+k:dad
+k:family
+k:friend
+k:friends
+k:parents
+k:brother
+k:sister
+
+r:go on we are listening
+r:it's not your fault it any case social isolation can happen to anyone for many reasons
+r:please go on we are listening to every word and understanding you we do not judge you or blame you
+k:i am
+k:i'm
+k:i think
+k:i feel
+
+r:i'll let the others speak too
+r:how all of you feel about this subject?
+r:go on we are listening
+r:that's interesting
+k:nokeyfound
+e:

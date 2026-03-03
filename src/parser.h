@@ -77,7 +77,40 @@ private:
     std::unique_ptr<ASTNode> parse_paint_stmt();
     std::unique_ptr<ASTNode> parse_sound_stmt();
     std::unique_ptr<ASTNode> parse_play_stmt();
-    
+    std::unique_ptr<ASTNode> parse_select_case_stmt();
+    std::unique_ptr<ASTNode> parse_exit_stmt();
+    std::unique_ptr<ASTNode> parse_const_stmt();
+    std::unique_ptr<ASTNode> parse_swap_stmt();
+    std::unique_ptr<ASTNode> parse_declare_stmt();
+    std::unique_ptr<ASTNode> parse_redim_stmt();
+    std::unique_ptr<ASTNode> parse_erase_stmt();
+    std::unique_ptr<ASTNode> parse_write_stmt();
+    std::unique_ptr<ASTNode> parse_seek_stmt();
+    std::unique_ptr<ASTNode> parse_get_stmt();
+    std::unique_ptr<ASTNode> parse_put_stmt();
+    std::unique_ptr<ASTNode> parse_resume_stmt();
+    std::unique_ptr<ASTNode> parse_type_def();
+    std::unique_ptr<ASTNode> parse_draw_stmt();
+    std::unique_ptr<ASTNode> parse_palette_stmt();
+    std::unique_ptr<ASTNode> parse_view_stmt();
+    std::unique_ptr<ASTNode> parse_window_stmt();
+    std::unique_ptr<ASTNode> parse_pcopy_stmt();
+    std::unique_ptr<ASTNode> parse_get_gfx_stmt();
+    std::unique_ptr<ASTNode> parse_put_gfx_stmt();
+    std::unique_ptr<ASTNode> parse_shell_stmt();
+    std::unique_ptr<ASTNode> parse_poke_stmt();
+    std::unique_ptr<ASTNode> parse_def_seg_stmt();
+
+    // Phase 6: QB64 Extensions
+    std::unique_ptr<ASTNode> parse_display_stmt();
+    std::unique_ptr<ASTNode> parse_limit_stmt();
+    std::unique_ptr<ASTNode> parse_freeimage_stmt();
+    std::unique_ptr<ASTNode> parse_putimage_stmt();
+    std::unique_ptr<ASTNode> parse_printstring_stmt();
+    std::unique_ptr<ASTNode> parse_sndplay_stmt();
+    std::unique_ptr<ASTNode> parse_sndstop_stmt();
+    std::unique_ptr<ASTNode> parse_sndvol_stmt();
+
     std::unique_ptr<Statement> parse_line();  // Parse a line of BASIC code
     std::unique_ptr<ASTNode> parse_statement();  // Parse just a statement (no line number wrapper)
     

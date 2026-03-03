@@ -1,0 +1,15 @@
+=== Error Handling Tests ===
+
+Test 1: ON ERROR GOTO
+Error caught! ERR =53 ERL =30
+After error line (RESUME NEXT continues here)
+Continued after error handler
+
+Test 2: ON ERROR GOTO 0
+Error handling disabled
+
+Test 3: ERR/ERL values
+Last ERR =53
+Last ERL =30
+
+All error handling tests passed!

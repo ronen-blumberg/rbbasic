@@ -1,0 +1,15 @@
+=== EXIT Statement Tests ===
+
+Test 1: EXIT FOR
+Exited FOR at i =5
+
+Test 2: EXIT DO
+Exited DO at x =3
+
+Test 3: EXIT WHILE
+Exited WHILE at y =7
+
+Test 4: Nested EXIT FOR
+Total (should be 20):20
+
+All EXIT tests passed!

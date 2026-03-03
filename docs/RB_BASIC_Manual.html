@@ -1,0 +1,1240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RB BASIC Language Manual - Ronen Blumberg BASIC</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: #f5f5f5;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+        }
+        
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+        
+        header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        
+        header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+        
+        nav {
+            background: #2c3e50;
+            padding: 15px 40px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        
+        nav ul {
+            list-style: none;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+        
+        nav a {
+            color: white;
+            text-decoration: none;
+            padding: 5px 10px;
+            border-radius: 3px;
+            transition: background 0.3s;
+        }
+        
+        nav a:hover {
+            background: #34495e;
+        }
+        
+        main {
+            padding: 40px;
+        }
+        
+        section {
+            margin-bottom: 50px;
+        }
+        
+        h2 {
+            color: #667eea;
+            font-size: 2em;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 3px solid #667eea;
+        }
+        
+        h3 {
+            color: #764ba2;
+            font-size: 1.5em;
+            margin-top: 30px;
+            margin-bottom: 15px;
+        }
+        
+        h4 {
+            color: #555;
+            font-size: 1.2em;
+            margin-top: 20px;
+            margin-bottom: 10px;
+        }
+        
+        code {
+            background: #f4f4f4;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            color: #c7254e;
+        }
+        
+        pre {
+            background: #2d2d2d;
+            color: #f8f8f2;
+            padding: 20px;
+            border-radius: 5px;
+            overflow-x: auto;
+            margin: 15px 0;
+            font-family: 'Courier New', monospace;
+            line-height: 1.4;
+        }
+        
+        pre code {
+            background: none;
+            color: #f8f8f2;
+            padding: 0;
+        }
+        
+        .syntax {
+            background: #e8f4f8;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        
+        .note {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        
+        .example {
+            background: #d4edda;
+            border-left: 4px solid #28a745;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        th {
+            background: #667eea;
+            color: white;
+            font-weight: bold;
+        }
+        
+        tr:hover {
+            background: #f5f5f5;
+        }
+        
+        .keyword {
+            color: #0000ff;
+            font-weight: bold;
+        }
+        
+        .string {
+            color: #a31515;
+        }
+        
+        .comment {
+            color: #008000;
+        }
+        
+        .number {
+            color: #098658;
+        }
+        
+        footer {
+            background: #2c3e50;
+            color: white;
+            text-align: center;
+            padding: 20px;
+            margin-top: 50px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>RB BASIC Language Manual</h1>
+            <p>Ronen Blumberg BASIC - Complete Language Reference v2.0</p>
+        </header>
+        
+        <nav>
+            <ul>
+                <li><a href="#introduction">Introduction</a></li>
+                <li><a href="#basics">Program Basics</a></li>
+                <li><a href="#variables">Variables</a></li>
+                <li><a href="#operators">Operators</a></li>
+                <li><a href="#control">Control Flow</a></li>
+                <li><a href="#io">Input/Output</a></li>
+                <li><a href="#data">Data Statements</a></li>
+                <li><a href="#functions">Functions</a></li>
+                <li><a href="#arrays">Arrays</a></li>
+                <li><a href="#procedures">Procedures</a></li>
+                <li><a href="#files">File I/O</a></li>
+                <li><a href="#graphics">Graphics</a></li>
+                <li><a href="#sound">Sound</a></li>
+                <li><a href="#examples">Examples</a></li>
+            </ul>
+        </nav>
+        
+        <main>
+            <!-- INTRODUCTION -->
+            <section id="introduction">
+                <h2>Introduction</h2>
+                <p>RB BASIC (Ronen Blumberg BASIC) is a modern BASIC compiler that provides full compatibility with GW-BASIC and QBasic syntax while compiling to native executable code through C. It combines the simplicity of classic BASIC with modern performance.</p>
+                
+                <h3>Key Features</h3>
+                <ul>
+                    <li>Full GW-BASIC/QBasic compatibility</li>
+                    <li>Compiles to native Windows executables</li>
+                    <li>Line numbers optional</li>
+                    <li>Structured programming with SUB and FUNCTION</li>
+                    <li>Graphics support via SDL2</li>
+                    <li>File I/O capabilities</li>
+                    <li>Arrays and DATA statements</li>
+                    <li>String manipulation functions</li>
+                </ul>
+            </section>
+            
+            <!-- PROGRAM BASICS -->
+            <section id="basics">
+                <h2>Program Basics</h2>
+                
+                <h3>Line Numbers</h3>
+                <p>RB BASIC supports traditional line numbers for compatibility with classic BASIC programs:</p>
+                
+                <pre><code><span class="number">10</span> <span class="keyword">PRINT</span> <span class="string">"Hello, World!"</span>
+<span class="number">20</span> <span class="keyword">END</span></code></pre>
+                
+                <h3>Comments</h3>
+                <p>Use <code>REM</code> to add comments to your code:</p>
+                
+                <pre><code><span class="number">10</span> <span class="keyword">REM</span> <span class="comment">This is a comment</span>
+<span class="number">20</span> <span class="keyword">PRINT</span> <span class="string">"Hello"</span>  <span class="keyword">REM</span> <span class="comment">Comments can also go at the end of lines</span></code></pre>
+                
+                <h3>Multiple Statements Per Line</h3>
+                <p>Use colons (<code>:</code>) to separate multiple statements on one line:</p>
+                
+                <pre><code><span class="number">10</span> A = <span class="number">5</span>: B = <span class="number">10</span>: <span class="keyword">PRINT</span> A + B</code></pre>
+            </section>
+            
+            <!-- VARIABLES -->
+            <section id="variables">
+                <h2>Variables and Data Types</h2>
+                
+                <h3>Numeric Variables</h3>
+                <p>Numeric variables can store integers or floating-point numbers:</p>
+                
+                <pre><code>X = <span class="number">10</span>
+Y = <span class="number">3.14159</span>
+TOTAL = X * Y</code></pre>
+                
+                <h3>String Variables</h3>
+                <p>String variables end with a dollar sign (<code>$</code>):</p>
+                
+                <pre><code>NAME$ = <span class="string">"Ronen"</span>
+MESSAGE$ = <span class="string">"Hello, "</span> + NAME$
+<span class="keyword">PRINT</span> MESSAGE$</code></pre>
+                
+                <div class="note">
+                    <strong>Note:</strong> Variable names are case-insensitive. <code>name$</code>, <code>NAME$</code>, and <code>Name$</code> all refer to the same variable.
+                </div>
+                
+                <h3>LET Statement</h3>
+                <p>The <code>LET</code> keyword is optional for assignments:</p>
+                
+                <pre><code><span class="keyword">LET</span> X = <span class="number">100</span>  <span class="comment">REM Optional LET</span>
+Y = <span class="number">200</span>         <span class="comment">REM Without LET</span></code></pre>
+            </section>
+            
+            <!-- OPERATORS -->
+            <section id="operators">
+                <h2>Operators</h2>
+                
+                <h3>Arithmetic Operators</h3>
+                <table>
+                    <tr>
+                        <th>Operator</th>
+                        <th>Description</th>
+                        <th>Example</th>
+                    </tr>
+                    <tr>
+                        <td><code>+</code></td>
+                        <td>Addition</td>
+                        <td><code>A = 5 + 3</code></td>
+                    </tr>
+                    <tr>
+                        <td><code>-</code></td>
+                        <td>Subtraction</td>
+                        <td><code>B = 10 - 4</code></td>
+                    </tr>
+                    <tr>
+                        <td><code>*</code></td>
+                        <td>Multiplication</td>
+                        <td><code>C = 6 * 7</code></td>
+                    </tr>
+                    <tr>
+                        <td><code>/</code></td>
+                        <td>Division</td>
+                        <td><code>D = 20 / 4</code></td>
+                    </tr>
+                    <tr>
+                        <td><code>\</code></td>
+                        <td>Integer Division</td>
+                        <td><code>E = 17 \ 5</code> (= 3)</td>
+                    </tr>
+                    <tr>
+                        <td><code>MOD</code></td>
+                        <td>Modulo (Remainder)</td>
+                        <td><code>F = 17 MOD 5</code> (= 2)</td>
+                    </tr>
+                    <tr>
+                        <td><code>^</code></td>
+                        <td>Exponentiation</td>
+                        <td><code>G = 2 ^ 8</code> (= 256)</td>
+                    </tr>
+                </table>
+                
+                <h3>Comparison Operators</h3>
+                <table>
+                    <tr>
+                        <th>Operator</th>
+                        <th>Description</th>
+                        <th>Example</th>
+                    </tr>
+                    <tr>
+                        <td><code>=</code></td>
+                        <td>Equal to</td>
+                        <td><code>IF A = 5 THEN</code></td>
+                    </tr>
+                    <tr>
+                        <td><code>&lt;&gt;</code></td>
+                        <td>Not equal to</td>
+                        <td><code>IF B &lt;&gt; 0 THEN</code></td>
+                    </tr>
+                    <tr>
+                        <td><code>&lt;</code></td>
+                        <td>Less than</td>
+                        <td><code>IF X &lt; 100 THEN</code></td>
+                    </tr>
+                    <tr>
+                        <td><code>&gt;</code></td>
+                        <td>Greater than</td>
+                        <td><code>IF Y &gt; 50 THEN</code></td>
+                    </tr>
+                    <tr>
+                        <td><code>&lt;=</code></td>
+                        <td>Less than or equal</td>
+                        <td><code>IF A &lt;= 10 THEN</code></td>
+                    </tr>
+                    <tr>
+                        <td><code>&gt;=</code></td>
+                        <td>Greater than or equal</td>
+                        <td><code>IF B &gt;= 5 THEN</code></td>
+                    </tr>
+                </table>
+                
+                <h3>Logical Operators</h3>
+                <table>
+                    <tr>
+                        <th>Operator</th>
+                        <th>Description</th>
+                        <th>Example</th>
+                    </tr>
+                    <tr>
+                        <td><code>AND</code></td>
+                        <td>Logical AND</td>
+                        <td><code>IF A &gt; 0 AND B &lt; 100 THEN</code></td>
+                    </tr>
+                    <tr>
+                        <td><code>OR</code></td>
+                        <td>Logical OR</td>
+                        <td><code>IF X = 1 OR X = 2 THEN</code></td>
+                    </tr>
+                    <tr>
+                        <td><code>NOT</code></td>
+                        <td>Logical NOT</td>
+                        <td><code>IF NOT EOF(1) THEN</code></td>
+                    </tr>
+                </table>
+            </section>
+            
+            <!-- CONTROL FLOW -->
+            <section id="control">
+                <h2>Control Flow</h2>
+                
+                <h3>IF...THEN...ELSE</h3>
+                
+                <h4>Single-line IF</h4>
+                <div class="syntax">
+                    <code>IF condition THEN statement</code>
+                </div>
+                
+                <pre><code><span class="keyword">IF</span> A &gt; <span class="number">10</span> <span class="keyword">THEN</span> <span class="keyword">PRINT</span> <span class="string">"Greater"</span></code></pre>
+                
+                <h4>Block IF (Multi-line)</h4>
+                <div class="syntax">
+                    <code>IF condition THEN<br>
+                    &nbsp;&nbsp;&nbsp;&nbsp;statements<br>
+                    ELSEIF condition THEN<br>
+                    &nbsp;&nbsp;&nbsp;&nbsp;statements<br>
+                    ELSE<br>
+                    &nbsp;&nbsp;&nbsp;&nbsp;statements<br>
+                    END IF</code>
+                </div>
+                
+                <pre><code><span class="keyword">IF</span> SCORE &gt;= <span class="number">90</span> <span class="keyword">THEN</span>
+    <span class="keyword">PRINT</span> <span class="string">"Grade: A"</span>
+<span class="keyword">ELSEIF</span> SCORE &gt;= <span class="number">80</span> <span class="keyword">THEN</span>
+    <span class="keyword">PRINT</span> <span class="string">"Grade: B"</span>
+<span class="keyword">ELSEIF</span> SCORE &gt;= <span class="number">70</span> <span class="keyword">THEN</span>
+    <span class="keyword">PRINT</span> <span class="string">"Grade: C"</span>
+<span class="keyword">ELSE</span>
+    <span class="keyword">PRINT</span> <span class="string">"Grade: F"</span>
+<span class="keyword">END IF</span></code></pre>
+                
+                <h3>FOR...NEXT Loop</h3>
+                <div class="syntax">
+                    <code>FOR variable = start TO end [STEP increment]<br>
+                    &nbsp;&nbsp;&nbsp;&nbsp;statements<br>
+                    NEXT [variable]</code>
+                </div>
+                
+                <pre><code><span class="comment">REM Count from 1 to 10</span>
+<span class="keyword">FOR</span> I = <span class="number">1</span> <span class="keyword">TO</span> <span class="number">10</span>
+    <span class="keyword">PRINT</span> I
+<span class="keyword">NEXT</span> I
+
+<span class="comment">REM Count by 2s</span>
+<span class="keyword">FOR</span> J = <span class="number">0</span> <span class="keyword">TO</span> <span class="number">20</span> <span class="keyword">STEP</span> <span class="number">2</span>
+    <span class="keyword">PRINT</span> J
+<span class="keyword">NEXT</span> J
+
+<span class="comment">REM Count backwards</span>
+<span class="keyword">FOR</span> K = <span class="number">10</span> <span class="keyword">TO</span> <span class="number">1</span> <span class="keyword">STEP</span> <span class="number">-1</span>
+    <span class="keyword">PRINT</span> K
+<span class="keyword">NEXT</span> K</code></pre>
+                
+                <h3>WHILE...WEND Loop</h3>
+                <div class="syntax">
+                    <code>WHILE condition<br>
+                    &nbsp;&nbsp;&nbsp;&nbsp;statements<br>
+                    WEND</code>
+                </div>
+                
+                <pre><code>I = <span class="number">1</span>
+<span class="keyword">WHILE</span> I &lt;= <span class="number">10</span>
+    <span class="keyword">PRINT</span> I
+    I = I + <span class="number">1</span>
+<span class="keyword">WEND</span></code></pre>
+                
+                <h3>DO...LOOP</h3>
+                <div class="syntax">
+                    <code>DO WHILE condition<br>
+                    &nbsp;&nbsp;&nbsp;&nbsp;statements<br>
+                    LOOP</code>
+                </div>
+                
+                <pre><code><span class="comment">REM DO WHILE (test at start)</span>
+I = <span class="number">1</span>
+<span class="keyword">DO WHILE</span> I &lt;= <span class="number">5</span>
+    <span class="keyword">PRINT</span> I
+    I = I + <span class="number">1</span>
+<span class="keyword">LOOP</span>
+
+<span class="comment">REM DO...LOOP WHILE (test at end)</span>
+J = <span class="number">1</span>
+<span class="keyword">DO</span>
+    <span class="keyword">PRINT</span> J
+    J = J + <span class="number">1</span>
+<span class="keyword">LOOP WHILE</span> J &lt;= <span class="number">5</span>
+
+<span class="comment">REM DO UNTIL</span>
+K = <span class="number">1</span>
+<span class="keyword">DO UNTIL</span> K &gt; <span class="number">5</span>
+    <span class="keyword">PRINT</span> K
+    K = K + <span class="number">1</span>
+<span class="keyword">LOOP</span></code></pre>
+                
+                <h3>GOTO Statement</h3>
+                <div class="syntax">
+                    <code>GOTO line_number</code>
+                </div>
+                
+                <pre><code><span class="number">10</span> <span class="keyword">PRINT</span> <span class="string">"Start"</span>
+<span class="number">20</span> <span class="keyword">GOTO</span> <span class="number">40</span>
+<span class="number">30</span> <span class="keyword">PRINT</span> <span class="string">"Skipped"</span>
+<span class="number">40</span> <span class="keyword">PRINT</span> <span class="string">"End"</span></code></pre>
+                
+                <h3>GOSUB...RETURN</h3>
+                <div class="syntax">
+                    <code>GOSUB line_number<br>
+                    ...<br>
+                    line_number: statements<br>
+                    RETURN</code>
+                </div>
+                
+                <pre><code><span class="number">10</span> <span class="keyword">GOSUB</span> <span class="number">100</span>
+<span class="number">20</span> <span class="keyword">GOSUB</span> <span class="number">100</span>
+<span class="number">30</span> <span class="keyword">END</span>
+<span class="number">100</span> <span class="keyword">PRINT</span> <span class="string">"Subroutine called"</span>
+<span class="number">110</span> <span class="keyword">RETURN</span></code></pre>
+                
+                <h3>ON...GOTO / ON...GOSUB</h3>
+                <div class="syntax">
+                    <code>ON expression GOTO line1, line2, line3...<br>
+                    ON expression GOSUB line1, line2, line3...</code>
+                </div>
+                
+                <pre><code><span class="keyword">INPUT</span> <span class="string">"Choose 1-3: "</span>, CHOICE
+<span class="keyword">ON</span> CHOICE <span class="keyword">GOTO</span> <span class="number">100</span>, <span class="number">200</span>, <span class="number">300</span>
+<span class="number">100</span> <span class="keyword">PRINT</span> <span class="string">"Option 1"</span>: <span class="keyword">END</span>
+<span class="number">200</span> <span class="keyword">PRINT</span> <span class="string">"Option 2"</span>: <span class="keyword">END</span>
+<span class="number">300</span> <span class="keyword">PRINT</span> <span class="string">"Option 3"</span>: <span class="keyword">END</span></code></pre>
+                
+                <h3>END Statement</h3>
+                <p>Terminates program execution:</p>
+                <pre><code><span class="keyword">END</span></code></pre>
+            </section>
+            
+            <!-- INPUT/OUTPUT -->
+            <section id="io">
+                <h2>Input/Output</h2>
+                
+                <h3>PRINT Statement</h3>
+                <div class="syntax">
+                    <code>PRINT [expression [; | ,] expression...]</code>
+                </div>
+                
+                <pre><code><span class="keyword">PRINT</span> <span class="string">"Hello, World!"</span>
+<span class="keyword">PRINT</span> <span class="string">"X ="</span>; X
+<span class="keyword">PRINT</span> A; B; C              <span class="comment">REM Semicolon: no spacing</span>
+<span class="keyword">PRINT</span> A, B, C              <span class="comment">REM Comma: tab spacing</span>
+<span class="keyword">PRINT</span> A;                   <span class="comment">REM No newline at end</span></code></pre>
+                
+                <h3>INPUT Statement</h3>
+                <div class="syntax">
+                    <code>INPUT ["prompt";] variable [, variable...]</code>
+                </div>
+                
+                <pre><code><span class="keyword">INPUT</span> <span class="string">"Enter your name: "</span>, NAME$
+<span class="keyword">INPUT</span> <span class="string">"Enter age: "</span>, AGE
+<span class="keyword">INPUT</span> <span class="string">"X, Y: "</span>, X, Y</code></pre>
+                
+                <h3>LINE INPUT Statement</h3>
+                <p>Reads an entire line including commas and quotes:</p>
+                
+                <pre><code><span class="keyword">LINE INPUT</span> <span class="string">"Enter a sentence: "</span>, TEXT$</code></pre>
+                
+                <h3>CLS (Clear Screen)</h3>
+                <pre><code><span class="keyword">CLS</span></code></pre>
+                
+                <h3>LOCATE</h3>
+                <div class="syntax">
+                    <code>LOCATE row, column</code>
+                </div>
+                
+                <pre><code><span class="keyword">LOCATE</span> <span class="number">10</span>, <span class="number">20</span>
+<span class="keyword">PRINT</span> <span class="string">"At position 10,20"</span></code></pre>
+                
+                <h3>COLOR</h3>
+                <div class="syntax">
+                    <code>COLOR foreground [, background]</code>
+                </div>
+                
+                <pre><code><span class="keyword">COLOR</span> <span class="number">15</span>, <span class="number">1</span>  <span class="comment">REM White on blue</span></code></pre>
+                
+                <h3>KEY Statement</h3>
+                <pre><code><span class="keyword">KEY OFF</span>  <span class="comment">REM Hide function key line</span>
+<span class="keyword">KEY ON</span>   <span class="comment">REM Show function key line</span></code></pre>
+            </section>
+            
+            <!-- DATA STATEMENTS -->
+            <section id="data">
+                <h2>DATA Statements</h2>
+                
+                <h3>DATA</h3>
+                <p>Stores data values to be read by READ statements:</p>
+                
+                <div class="syntax">
+                    <code>DATA value1, value2, value3...</code>
+                </div>
+                
+                <h3>READ</h3>
+                <p>Reads values from DATA statements:</p>
+                
+                <div class="syntax">
+                    <code>READ variable [, variable...]</code>
+                </div>
+                
+                <h3>RESTORE</h3>
+                <p>Resets the data pointer to the beginning or a specific line:</p>
+                
+                <div class="syntax">
+                    <code>RESTORE [line_number]</code>
+                </div>
+                
+                <div class="example">
+                    <strong>Example:</strong>
+                    <pre><code><span class="number">10</span> <span class="keyword">DATA</span> <span class="string">"Alice"</span>, <span class="number">25</span>, <span class="string">"Bob"</span>, <span class="number">30</span>
+<span class="number">20</span> <span class="keyword">DATA</span> <span class="string">"Charlie"</span>, <span class="number">35</span>
+<span class="number">30</span> <span class="keyword">READ</span> NAME$, AGE
+<span class="number">40</span> <span class="keyword">PRINT</span> NAME$; <span class="string">" is "</span>; AGE
+<span class="number">50</span> <span class="keyword">READ</span> NAME$, AGE
+<span class="number">60</span> <span class="keyword">PRINT</span> NAME$; <span class="string">" is "</span>; AGE
+<span class="number">70</span> <span class="keyword">RESTORE</span>
+<span class="number">80</span> <span class="keyword">READ</span> NAME$, AGE
+<span class="number">90</span> <span class="keyword">PRINT</span> <span class="string">"First again: "</span>; NAME$</code></pre>
+                </div>
+            </section>
+            
+            <!-- FUNCTIONS -->
+            <section id="functions">
+                <h2>Built-in Functions</h2>
+                
+                <h3>Mathematical Functions</h3>
+                <table>
+                    <tr>
+                        <th>Function</th>
+                        <th>Description</th>
+                        <th>Example</th>
+                    </tr>
+                    <tr>
+                        <td><code>ABS(x)</code></td>
+                        <td>Absolute value</td>
+                        <td><code>Y = ABS(-5)</code> → 5</td>
+                    </tr>
+                    <tr>
+                        <td><code>SIN(x)</code></td>
+                        <td>Sine (radians)</td>
+                        <td><code>Y = SIN(1.57)</code></td>
+                    </tr>
+                    <tr>
+                        <td><code>COS(x)</code></td>
+                        <td>Cosine (radians)</td>
+                        <td><code>Y = COS(0)</code> → 1</td>
+                    </tr>
+                    <tr>
+                        <td><code>TAN(x)</code></td>
+                        <td>Tangent (radians)</td>
+                        <td><code>Y = TAN(0.785)</code></td>
+                    </tr>
+                    <tr>
+                        <td><code>ATN(x)</code></td>
+                        <td>Arctangent (radians)</td>
+                        <td><code>Y = ATN(1)</code> → 0.785</td>
+                    </tr>
+                    <tr>
+                        <td><code>SQR(x)</code></td>
+                        <td>Square root</td>
+                        <td><code>Y = SQR(16)</code> → 4</td>
+                    </tr>
+                    <tr>
+                        <td><code>EXP(x)</code></td>
+                        <td>e to the power of x</td>
+                        <td><code>Y = EXP(1)</code> → 2.718</td>
+                    </tr>
+                    <tr>
+                        <td><code>LOG(x)</code></td>
+                        <td>Natural logarithm</td>
+                        <td><code>Y = LOG(10)</code></td>
+                    </tr>
+                    <tr>
+                        <td><code>INT(x)</code></td>
+                        <td>Integer part (floor)</td>
+                        <td><code>Y = INT(3.7)</code> → 3</td>
+                    </tr>
+                    <tr>
+                        <td><code>FIX(x)</code></td>
+                        <td>Truncate to integer</td>
+                        <td><code>Y = FIX(-3.7)</code> → -3</td>
+                    </tr>
+                    <tr>
+                        <td><code>CINT(x)</code></td>
+                        <td>Round to nearest integer</td>
+                        <td><code>Y = CINT(3.5)</code> → 4</td>
+                    </tr>
+                    <tr>
+                        <td><code>SGN(x)</code></td>
+                        <td>Sign (-1, 0, or 1)</td>
+                        <td><code>Y = SGN(-5)</code> → -1</td>
+                    </tr>
+                    <tr>
+                        <td><code>RND</code></td>
+                        <td>Random number 0 to 1</td>
+                        <td><code>Y = RND</code></td>
+                    </tr>
+                </table>
+                
+                <h3>String Functions</h3>
+                <table>
+                    <tr>
+                        <th>Function</th>
+                        <th>Description</th>
+                        <th>Example</th>
+                    </tr>
+                    <tr>
+                        <td><code>LEFT$(s$, n)</code></td>
+                        <td>Leftmost n characters</td>
+                        <td><code>A$ = LEFT$("HELLO", 2)</code> → "HE"</td>
+                    </tr>
+                    <tr>
+                        <td><code>RIGHT$(s$, n)</code></td>
+                        <td>Rightmost n characters</td>
+                        <td><code>A$ = RIGHT$("HELLO", 2)</code> → "LO"</td>
+                    </tr>
+                    <tr>
+                        <td><code>MID$(s$, start, len)</code></td>
+                        <td>Substring</td>
+                        <td><code>A$ = MID$("HELLO", 2, 3)</code> → "ELL"</td>
+                    </tr>
+                    <tr>
+                        <td><code>LEN(s$)</code></td>
+                        <td>Length of string</td>
+                        <td><code>N = LEN("HELLO")</code> → 5</td>
+                    </tr>
+                    <tr>
+                        <td><code>INSTR(s1$, s2$)</code></td>
+                        <td>Find substring position</td>
+                        <td><code>N = INSTR("HELLO", "LL")</code> → 3</td>
+                    </tr>
+                    <tr>
+                        <td><code>CHR$(n)</code></td>
+                        <td>Character from ASCII code</td>
+                        <td><code>A$ = CHR$(65)</code> → "A"</td>
+                    </tr>
+                    <tr>
+                        <td><code>ASC(s$)</code></td>
+                        <td>ASCII code of first char</td>
+                        <td><code>N = ASC("A")</code> → 65</td>
+                    </tr>
+                    <tr>
+                        <td><code>STR$(n)</code></td>
+                        <td>Number to string</td>
+                        <td><code>A$ = STR$(123)</code> → " 123"</td>
+                    </tr>
+                    <tr>
+                        <td><code>VAL(s$)</code></td>
+                        <td>String to number</td>
+                        <td><code>N = VAL("123")</code> → 123</td>
+                    </tr>
+                    <tr>
+                        <td><code>UCASE$(s$)</code></td>
+                        <td>Convert to uppercase</td>
+                        <td><code>A$ = UCASE$("hello")</code> → "HELLO"</td>
+                    </tr>
+                    <tr>
+                        <td><code>LCASE$(s$)</code></td>
+                        <td>Convert to lowercase</td>
+                        <td><code>A$ = LCASE$("HELLO")</code> → "hello"</td>
+                    </tr>
+                    <tr>
+                        <td><code>SPACE$(n)</code></td>
+                        <td>String of n spaces</td>
+                        <td><code>A$ = SPACE$(5)</code></td>
+                    </tr>
+                    <tr>
+                        <td><code>STRING$(n, c$)</code></td>
+                        <td>Repeat character n times</td>
+                        <td><code>A$ = STRING$(5, "*")</code> → "*****"</td>
+                    </tr>
+                    <tr>
+                        <td><code>HEX$(n)</code></td>
+                        <td>Number to hexadecimal</td>
+                        <td><code>A$ = HEX$(255)</code> → "FF"</td>
+                    </tr>
+                    <tr>
+                        <td><code>OCT$(n)</code></td>
+                        <td>Number to octal</td>
+                        <td><code>A$ = OCT$(8)</code> → "10"</td>
+                    </tr>
+                </table>
+                
+                <h3>Input Functions</h3>
+                <table>
+                    <tr>
+                        <th>Function</th>
+                        <th>Description</th>
+                        <th>Example</th>
+                    </tr>
+                    <tr>
+                        <td><code>INKEY$</code></td>
+                        <td>Get keystroke (no wait)</td>
+                        <td><code>K$ = INKEY$</code></td>
+                    </tr>
+                    <tr>
+                        <td><code>INPUT$(n)</code></td>
+                        <td>Read n characters</td>
+                        <td><code>A$ = INPUT$(5)</code></td>
+                    </tr>
+                </table>
+                
+                <h3>System Functions</h3>
+                <table>
+                    <tr>
+                        <th>Function</th>
+                        <th>Description</th>
+                        <th>Example</th>
+                    </tr>
+                    <tr>
+                        <td><code>TIMER</code></td>
+                        <td>Seconds since midnight</td>
+                        <td><code>T = TIMER</code></td>
+                    </tr>
+                    <tr>
+                        <td><code>DATE$</code></td>
+                        <td>Current date</td>
+                        <td><code>D$ = DATE$</code> → "10-30-2025"</td>
+                    </tr>
+                    <tr>
+                        <td><code>TIME$</code></td>
+                        <td>Current time</td>
+                        <td><code>T$ = TIME$</code> → "14:30:25"</td>
+                    </tr>
+                </table>
+                
+                <h3>RANDOMIZE</h3>
+                <p>Initializes random number generator:</p>
+                <pre><code><span class="keyword">RANDOMIZE</span> <span class="keyword">TIMER</span>  <span class="comment">REM Seed with current time</span></code></pre>
+                
+                <h3>User-Defined Functions</h3>
+                <div class="syntax">
+                    <code>DEF FNname(parameters) = expression</code>
+                </div>
+                
+                <pre><code><span class="keyword">DEF</span> <span class="keyword">FN</span>square(X) = X * X
+<span class="keyword">DEF</span> <span class="keyword">FN</span>area(L, W) = L * W
+
+<span class="keyword">PRINT</span> <span class="keyword">FN</span>square(<span class="number">5</span>)     <span class="comment">REM Prints 25</span>
+<span class="keyword">PRINT</span> <span class="keyword">FN</span>area(<span class="number">10</span>, <span class="number">20</span>) <span class="comment">REM Prints 200</span></code></pre>
+            </section>
+            
+            <!-- ARRAYS -->
+            <section id="arrays">
+                <h2>Arrays</h2>
+                
+                <h3>DIM Statement</h3>
+                <p>Declares array dimensions:</p>
+                
+                <div class="syntax">
+                    <code>DIM array_name(size [, size2...])</code>
+                </div>
+                
+                <pre><code><span class="comment">REM One-dimensional array</span>
+<span class="keyword">DIM</span> SCORES(<span class="number">10</span>)
+<span class="keyword">FOR</span> I = <span class="number">0</span> <span class="keyword">TO</span> <span class="number">10</span>
+    SCORES(I) = I * <span class="number">10</span>
+<span class="keyword">NEXT</span> I
+
+<span class="comment">REM Two-dimensional array</span>
+<span class="keyword">DIM</span> GRID(<span class="number">5</span>, <span class="number">5</span>)
+<span class="keyword">FOR</span> X = <span class="number">0</span> <span class="keyword">TO</span> <span class="number">5</span>
+    <span class="keyword">FOR</span> Y = <span class="number">0</span> <span class="keyword">TO</span> <span class="number">5</span>
+        GRID(X, Y) = X + Y
+    <span class="keyword">NEXT</span> Y
+<span class="keyword">NEXT</span> X
+
+<span class="comment">REM String arrays</span>
+<span class="keyword">DIM</span> NAMES$(<span class="number">100</span>)
+NAMES$(<span class="number">0</span>) = <span class="string">"Alice"</span>
+NAMES$(<span class="number">1</span>) = <span class="string">"Bob"</span></code></pre>
+                
+                <h3>LBOUND and UBOUND</h3>
+                <p>Get lower and upper bounds of arrays:</p>
+                
+                <pre><code><span class="keyword">DIM</span> A(<span class="number">10</span>)
+<span class="keyword">PRINT</span> LBOUND(A)  <span class="comment">REM Prints 0</span>
+<span class="keyword">PRINT</span> UBOUND(A)  <span class="comment">REM Prints 10</span></code></pre>
+            </section>
+            
+            <!-- PROCEDURES -->
+            <section id="procedures">
+                <h2>Subroutines and Functions</h2>
+                
+                <h3>SUB Procedures</h3>
+                <div class="syntax">
+                    <code>SUB name(parameters)<br>
+                    &nbsp;&nbsp;&nbsp;&nbsp;statements<br>
+                    END SUB</code>
+                </div>
+                
+                <pre><code><span class="keyword">SUB</span> DrawBox(X, Y, W, H)
+    <span class="keyword">LINE</span> (X, Y)-(X+W, Y)
+    <span class="keyword">LINE</span> (X+W, Y)-(X+W, Y+H)
+    <span class="keyword">LINE</span> (X+W, Y+H)-(X, Y+H)
+    <span class="keyword">LINE</span> (X, Y+H)-(X, Y)
+<span class="keyword">END SUB</span>
+
+<span class="comment">REM Call the SUB</span>
+<span class="keyword">CALL</span> DrawBox(<span class="number">100</span>, <span class="number">100</span>, <span class="number">50</span>, <span class="number">50</span>)</code></pre>
+                
+                <h3>FUNCTION Procedures</h3>
+                <div class="syntax">
+                    <code>FUNCTION name(parameters)<br>
+                    &nbsp;&nbsp;&nbsp;&nbsp;statements<br>
+                    &nbsp;&nbsp;&nbsp;&nbsp;name = return_value<br>
+                    END FUNCTION</code>
+                </div>
+                
+                <pre><code><span class="keyword">FUNCTION</span> Factorial(N)
+    <span class="keyword">IF</span> N &lt;= <span class="number">1</span> <span class="keyword">THEN</span>
+        Factorial = <span class="number">1</span>
+    <span class="keyword">ELSE</span>
+        Factorial = N * Factorial(N - <span class="number">1</span>)
+    <span class="keyword">END IF</span>
+<span class="keyword">END FUNCTION</span>
+
+<span class="keyword">PRINT</span> Factorial(<span class="number">5</span>)  <span class="comment">REM Prints 120</span></code></pre>
+            </section>
+            
+            <!-- FILE I/O -->
+            <section id="files">
+                <h2>File Input/Output</h2>
+                
+                <h3>OPEN Statement</h3>
+                <div class="syntax">
+                    <code>OPEN filename$ FOR mode AS #filenumber</code>
+                </div>
+                
+                <p>Modes: <code>INPUT</code>, <code>OUTPUT</code>, <code>APPEND</code></p>
+                
+                <h3>CLOSE Statement</h3>
+                <div class="syntax">
+                    <code>CLOSE [#filenumber [, #filenumber...]]</code>
+                </div>
+                
+                <h3>Writing to Files</h3>
+                <pre><code><span class="comment">REM Write to a file</span>
+<span class="keyword">OPEN</span> <span class="string">"DATA.TXT"</span> <span class="keyword">FOR OUTPUT AS</span> #<span class="number">1</span>
+<span class="keyword">PRINT</span> #<span class="number">1</span>, <span class="string">"Line 1"</span>
+<span class="keyword">PRINT</span> #<span class="number">1</span>, <span class="string">"Line 2"</span>
+<span class="keyword">CLOSE</span> #<span class="number">1</span></code></pre>
+                
+                <h3>Reading from Files</h3>
+                <pre><code><span class="comment">REM Read from a file</span>
+<span class="keyword">OPEN</span> <span class="string">"DATA.TXT"</span> <span class="keyword">FOR INPUT AS</span> #<span class="number">1</span>
+<span class="keyword">WHILE NOT</span> <span class="keyword">EOF</span>(<span class="number">1</span>)
+    <span class="keyword">LINE INPUT</span> #<span class="number">1</span>, TEXT$
+    <span class="keyword">PRINT</span> TEXT$
+<span class="keyword">WEND</span>
+<span class="keyword">CLOSE</span> #<span class="number">1</span></code></pre>
+                
+                <h3>File Functions</h3>
+                <table>
+                    <tr>
+                        <th>Function</th>
+                        <th>Description</th>
+                    </tr>
+                    <tr>
+                        <td><code>EOF(filenumber)</code></td>
+                        <td>Returns -1 if end of file reached</td>
+                    </tr>
+                    <tr>
+                        <td><code>LOF(filenumber)</code></td>
+                        <td>Returns length of file</td>
+                    </tr>
+                </table>
+                
+                <div class="example">
+                    <strong>Complete File Example:</strong>
+                    <pre><code><span class="comment">REM Save and load high scores</span>
+<span class="keyword">DIM</span> SCORES(<span class="number">5</span>)
+<span class="keyword">DIM</span> NAMES$(<span class="number">5</span>)
+
+<span class="comment">REM Save scores</span>
+<span class="keyword">OPEN</span> <span class="string">"SCORES.DAT"</span> <span class="keyword">FOR OUTPUT AS</span> #<span class="number">1</span>
+<span class="keyword">FOR</span> I = <span class="number">0</span> <span class="keyword">TO</span> <span class="number">5</span>
+    <span class="keyword">PRINT</span> #<span class="number">1</span>, NAMES$(I)
+    <span class="keyword">PRINT</span> #<span class="number">1</span>, SCORES(I)
+<span class="keyword">NEXT</span> I
+<span class="keyword">CLOSE</span> #<span class="number">1</span>
+
+<span class="comment">REM Load scores</span>
+<span class="keyword">OPEN</span> <span class="string">"SCORES.DAT"</span> <span class="keyword">FOR INPUT AS</span> #<span class="number">1</span>
+<span class="keyword">FOR</span> I = <span class="number">0</span> <span class="keyword">TO</span> <span class="number">5</span>
+    <span class="keyword">LINE INPUT</span> #<span class="number">1</span>, NAMES$(I)
+    <span class="keyword">INPUT</span> #<span class="number">1</span>, SCORES(I)
+<span class="keyword">NEXT</span> I
+<span class="keyword">CLOSE</span> #<span class="number">1</span></code></pre>
+                </div>
+            </section>
+            
+            <!-- GRAPHICS -->
+            <section id="graphics">
+                <h2>Graphics Commands</h2>
+                
+                <div class="note">
+                    <strong>Note:</strong> Graphics features require SDL2 and are rendered in a graphical window.
+                </div>
+                
+                <h3>SCREEN</h3>
+                <p>Set screen mode:</p>
+                <pre><code><span class="keyword">SCREEN</span> <span class="number">0</span>  <span class="comment">REM Text mode (80x25)</span>
+<span class="keyword">SCREEN</span> <span class="number">12</span> <span class="comment">REM Graphics mode (640x480)</span></code></pre>
+                
+                <h3>PSET</h3>
+                <p>Plot a point:</p>
+                <div class="syntax">
+                    <code>PSET (x, y) [, color]</code>
+                </div>
+                
+                <pre><code><span class="keyword">PSET</span> (<span class="number">100</span>, <span class="number">100</span>), <span class="number">15</span>  <span class="comment">REM White pixel</span></code></pre>
+                
+                <h3>LINE</h3>
+                <p>Draw a line or box:</p>
+                <div class="syntax">
+                    <code>LINE (x1, y1)-(x2, y2) [, color] [, B|BF]</code>
+                </div>
+                
+                <pre><code><span class="comment">REM Draw a line</span>
+<span class="keyword">LINE</span> (<span class="number">10</span>, <span class="number">10</span>)-(<span class="number">100</span>, <span class="number">100</span>), <span class="number">14</span>
+
+<span class="comment">REM Draw a box (outline)</span>
+<span class="keyword">LINE</span> (<span class="number">50</span>, <span class="number">50</span>)-(<span class="number">150</span>, <span class="number">100</span>), <span class="number">10</span>, B
+
+<span class="comment">REM Draw a filled box</span>
+<span class="keyword">LINE</span> (<span class="number">200</span>, <span class="number">50</span>)-(<span class="number">300</span>, <span class="number">100</span>), <span class="number">12</span>, BF</code></pre>
+                
+                <h3>CIRCLE</h3>
+                <p>Draw a circle or ellipse:</p>
+                <div class="syntax">
+                    <code>CIRCLE (x, y), radius [, color] [, start, end] [, aspect]</code>
+                </div>
+                
+                <pre><code><span class="comment">REM Draw a circle</span>
+<span class="keyword">CIRCLE</span> (<span class="number">320</span>, <span class="number">240</span>), <span class="number">50</span>, <span class="number">14</span>
+
+<span class="comment">REM Draw an ellipse</span>
+<span class="keyword">CIRCLE</span> (<span class="number">320</span>, <span class="number">240</span>), <span class="number">50</span>, <span class="number">12</span>, , , <span class="number">0.5</span></code></pre>
+                
+                <h3>PAINT</h3>
+                <p>Fill an area with color:</p>
+                <div class="syntax">
+                    <code>PAINT (x, y), color [, border_color]</code>
+                </div>
+                
+                <pre><code><span class="keyword">CIRCLE</span> (<span class="number">320</span>, <span class="number">240</span>), <span class="number">50</span>, <span class="number">15</span>
+<span class="keyword">PAINT</span> (<span class="number">320</span>, <span class="number">240</span>), <span class="number">12</span>, <span class="number">15</span>  <span class="comment">REM Fill the circle</span></code></pre>
+                
+                <h3>POINT</h3>
+                <p>Read pixel color:</p>
+                <div class="syntax">
+                    <code>color = POINT(x, y)</code>
+                </div>
+                
+                <pre><code>C = <span class="keyword">POINT</span>(<span class="number">100</span>, <span class="number">100</span>)
+<span class="keyword">PRINT</span> <span class="string">"Color at 100,100 is"</span>; C</code></pre>
+                
+                <h3>Color Values</h3>
+                <p>Standard 16-color palette:</p>
+                <table>
+                    <tr>
+                        <th>Value</th><th>Color</th><th>Value</th><th>Color</th>
+                    </tr>
+                    <tr>
+                        <td>0</td><td>Black</td><td>8</td><td>Dark Gray</td>
+                    </tr>
+                    <tr>
+                        <td>1</td><td>Blue</td><td>9</td><td>Light Blue</td>
+                    </tr>
+                    <tr>
+                        <td>2</td><td>Green</td><td>10</td><td>Light Green</td>
+                    </tr>
+                    <tr>
+                        <td>3</td><td>Cyan</td><td>11</td><td>Light Cyan</td>
+                    </tr>
+                    <tr>
+                        <td>4</td><td>Red</td><td>12</td><td>Light Red</td>
+                    </tr>
+                    <tr>
+                        <td>5</td><td>Magenta</td><td>13</td><td>Light Magenta</td>
+                    </tr>
+                    <tr>
+                        <td>6</td><td>Brown</td><td>14</td><td>Yellow</td>
+                    </tr>
+                    <tr>
+                        <td>7</td><td>White</td><td>15</td><td>Bright White</td>
+                    </tr>
+                </table>
+            </section>
+            
+            <!-- SOUND -->
+            <section id="sound">
+                <h2>Sound Commands</h2>
+                
+                <h3>SOUND</h3>
+                <p>Produce a sound of specified frequency and duration:</p>
+                
+                <div class="syntax">
+                    <code>SOUND frequency, duration</code>
+                </div>
+                
+                <p>Frequency is in Hertz (Hz), duration in clock ticks (18.2 per second)</p>
+                
+                <pre><code><span class="comment">REM Play middle C for 1 second</span>
+<span class="keyword">SOUND</span> <span class="number">262</span>, <span class="number">18.2</span>
+
+<span class="comment">REM Play a scale</span>
+<span class="keyword">SOUND</span> <span class="number">262</span>, <span class="number">9</span>  <span class="comment">REM C</span>
+<span class="keyword">SOUND</span> <span class="number">294</span>, <span class="number">9</span>  <span class="comment">REM D</span>
+<span class="keyword">SOUND</span> <span class="number">330</span>, <span class="number">9</span>  <span class="comment">REM E</span>
+<span class="keyword">SOUND</span> <span class="number">349</span>, <span class="number">9</span>  <span class="comment">REM F</span></code></pre>
+                
+                <h3>PLAY</h3>
+                <p>Play music using Music Macro Language (MML):</p>
+                
+                <div class="syntax">
+                    <code>PLAY music_string$</code>
+                </div>
+                
+                <pre><code><span class="comment">REM Play a simple melody</span>
+<span class="keyword">PLAY</span> <span class="string">"CDEFGAB"</span>
+
+<span class="comment">REM With note lengths and octaves</span>
+<span class="keyword">PLAY</span> <span class="string">"O4 L4 C D E F G A B O5 C"</span></code></pre>
+                
+                <h3>BEEP</h3>
+                <p>Produce a system beep sound:</p>
+                
+                <pre><code><span class="keyword">BEEP</span></code></pre>
+                
+                <h3>SLEEP</h3>
+                <p>Pause execution for specified seconds:</p>
+                
+                <pre><code><span class="keyword">SLEEP</span> <span class="number">2</span>  <span class="comment">REM Sleep for 2 seconds</span></code></pre>
+            </section>
+            
+            <!-- EXAMPLES -->
+            <section id="examples">
+                <h2>Complete Program Examples</h2>
+                
+                <h3>Example 1: Number Guessing Game</h3>
+                <pre><code><span class="number">10</span> <span class="keyword">REM</span> <span class="comment">Number Guessing Game</span>
+<span class="number">20</span> <span class="keyword">RANDOMIZE TIMER</span>
+<span class="number">30</span> SECRET = <span class="keyword">INT</span>(<span class="keyword">RND</span> * <span class="number">100</span>) + <span class="number">1</span>
+<span class="number">40</span> TRIES = <span class="number">0</span>
+<span class="number">50</span> <span class="keyword">PRINT</span> <span class="string">"Guess a number from 1 to 100"</span>
+<span class="number">60</span> <span class="keyword">INPUT</span> <span class="string">"Your guess: "</span>, GUESS
+<span class="number">70</span> TRIES = TRIES + <span class="number">1</span>
+<span class="number">80</span> <span class="keyword">IF</span> GUESS = SECRET <span class="keyword">THEN GOTO</span> <span class="number">140</span>
+<span class="number">90</span> <span class="keyword">IF</span> GUESS &lt; SECRET <span class="keyword">THEN</span>
+<span class="number">100</span>     <span class="keyword">PRINT</span> <span class="string">"Too low!"</span>
+<span class="number">110</span> <span class="keyword">ELSE</span>
+<span class="number">120</span>     <span class="keyword">PRINT</span> <span class="string">"Too high!"</span>
+<span class="number">130</span> <span class="keyword">END IF</span>
+<span class="number">135</span> <span class="keyword">GOTO</span> <span class="number">60</span>
+<span class="number">140</span> <span class="keyword">PRINT</span> <span class="string">"Correct! You got it in"</span>; TRIES; <span class="string">"tries!"</span>
+<span class="number">150</span> <span class="keyword">END</span></code></pre>
+                
+                <h3>Example 2: File Processing</h3>
+                <pre><code><span class="number">10</span> <span class="keyword">REM</span> <span class="comment">Read and display a text file</span>
+<span class="number">20</span> <span class="keyword">INPUT</span> <span class="string">"Enter filename: "</span>, FILENAME$
+<span class="number">30</span> <span class="keyword">OPEN</span> FILENAME$ <span class="keyword">FOR INPUT AS</span> #<span class="number">1</span>
+<span class="number">40</span> LINENUM = <span class="number">1</span>
+<span class="number">50</span> <span class="keyword">WHILE NOT EOF</span>(<span class="number">1</span>)
+<span class="number">60</span>     <span class="keyword">LINE INPUT</span> #<span class="number">1</span>, TEXT$
+<span class="number">70</span>     <span class="keyword">PRINT</span> <span class="keyword">STR$</span>(LINENUM); <span class="string">": "</span>; TEXT$
+<span class="number">80</span>     LINENUM = LINENUM + <span class="number">1</span>
+<span class="number">90</span>     <span class="keyword">IF</span> LINENUM <span class="keyword">MOD</span> <span class="number">20</span> = <span class="number">0</span> <span class="keyword">THEN</span>
+<span class="number">100</span>         <span class="keyword">PRINT</span> <span class="string">"Press any key..."</span>
+<span class="number">110</span>         <span class="keyword">WHILE INKEY$</span> = <span class="string">""</span>: <span class="keyword">WEND</span>
+<span class="number">120</span>     <span class="keyword">END IF</span>
+<span class="number">130</span> <span class="keyword">WEND</span>
+<span class="number">140</span> <span class="keyword">CLOSE</span> #<span class="number">1</span>
+<span class="number">150</span> <span class="keyword">END</span></code></pre>
+                
+                <h3>Example 3: Graphics Demo</h3>
+                <pre><code><span class="number">10</span> <span class="keyword">REM</span> <span class="comment">Colorful circles</span>
+<span class="number">20</span> <span class="keyword">SCREEN</span> <span class="number">12</span>
+<span class="number">30</span> <span class="keyword">RANDOMIZE TIMER</span>
+<span class="number">40</span> <span class="keyword">FOR</span> I = <span class="number">1</span> <span class="keyword">TO</span> <span class="number">50</span>
+<span class="number">50</span>     X = <span class="keyword">INT</span>(<span class="keyword">RND</span> * <span class="number">640</span>)
+<span class="number">60</span>     Y = <span class="keyword">INT</span>(<span class="keyword">RND</span> * <span class="number">480</span>)
+<span class="number">70</span>     R = <span class="keyword">INT</span>(<span class="keyword">RND</span> * <span class="number">50</span>) + <span class="number">10</span>
+<span class="number">80</span>     C = <span class="keyword">INT</span>(<span class="keyword">RND</span> * <span class="number">15</span>) + <span class="number">1</span>
+<span class="number">90</span>     <span class="keyword">CIRCLE</span> (X, Y), R, C
+<span class="number">100</span> <span class="keyword">NEXT</span> I
+<span class="number">110</span> <span class="keyword">WHILE INKEY$</span> = <span class="string">""</span>: <span class="keyword">WEND</span>
+<span class="number">120</span> <span class="keyword">END</span></code></pre>
+                
+                <h3>Example 4: Using SUB and FUNCTION</h3>
+                <pre><code><span class="keyword">SUB</span> DrawMenu()
+    <span class="keyword">CLS</span>
+    <span class="keyword">PRINT</span> <span class="string">"===== MAIN MENU ====="</span>
+    <span class="keyword">PRINT</span> <span class="string">"1. Start Game"</span>
+    <span class="keyword">PRINT</span> <span class="string">"2. High Scores"</span>
+    <span class="keyword">PRINT</span> <span class="string">"3. Exit"</span>
+    <span class="keyword">PRINT</span>
+<span class="keyword">END SUB</span>
+
+<span class="keyword">FUNCTION</span> GetChoice()
+    <span class="keyword">INPUT</span> <span class="string">"Choose (1-3): "</span>, C
+    <span class="keyword">IF</span> C &lt; <span class="number">1</span> <span class="keyword">OR</span> C &gt; <span class="number">3</span> <span class="keyword">THEN</span>
+        GetChoice = <span class="number">0</span>
+    <span class="keyword">ELSE</span>
+        GetChoice = C
+    <span class="keyword">END IF</span>
+<span class="keyword">END FUNCTION</span>
+
+<span class="comment">REM Main program</span>
+<span class="keyword">DO</span>
+    <span class="keyword">CALL</span> DrawMenu()
+    CHOICE = GetChoice()
+    <span class="keyword">IF</span> CHOICE = <span class="number">1</span> <span class="keyword">THEN</span> <span class="keyword">PRINT</span> <span class="string">"Starting game..."</span>
+    <span class="keyword">IF</span> CHOICE = <span class="number">2</span> <span class="keyword">THEN</span> <span class="keyword">PRINT</span> <span class="string">"Showing scores..."</span>
+<span class="keyword">LOOP UNTIL</span> CHOICE = <span class="number">3</span>
+<span class="keyword">PRINT</span> <span class="string">"Goodbye!"</span>
+<span class="keyword">END</span></code></pre>
+            </section>
+            
+        </main>
+        
+        <footer>
+            <p>&copy; 2025 RB BASIC - Ronen Blumberg BASIC Compiler v2.0</p>
+            <p>A modern BASIC compiler with classic compatibility</p>
+        </footer>
+    </div>
+</body>
+</html>

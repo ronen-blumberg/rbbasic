@@ -29,10 +29,10 @@ REM Compile the generated C code
     -O1 ^
     -s ^
     output.c ^
-    shim_winmain.c ^
     -lmingw32 ^
     -lSDL2main ^
     -lSDL2 ^
+    -lSDL2_mixer ^
     -luser32 ^
     -lgdi32 ^
     -lwinmm ^
@@ -42,6 +42,7 @@ REM Compile the generated C code
     -lversion ^
     -luuid ^
     -lm ^
+    -mwindows ^
     -o program.exe
 
 if errorlevel 1 (
@@ -59,15 +60,20 @@ echo Success! Created program.exe
 echo ============================================
 echo.
 
-REM Copy SDL2.dll to current directory
+REM Copy SDL2 DLLs to current directory
 if exist "C:\rbbasic-portable\lib\SDL2-mingw32\i686-w64-mingw32\bin\SDL2.dll" (
     copy /Y "C:\rbbasic-portable\lib\SDL2-mingw32\i686-w64-mingw32\bin\SDL2.dll" . >nul 2>&1
     if not errorlevel 1 echo SDL2.dll copied successfully.
-    echo.
 ) else (
     echo Warning: SDL2.dll not found at C:\rbbasic-portable\lib\SDL2-mingw32\i686-w64-mingw32\bin
     echo Graphics programs may not run without SDL2.dll
-    echo.
 )
+if exist "C:\rbbasic-portable\lib\SDL2-mingw32\i686-w64-mingw32\bin\SDL2_image.dll" (
+    copy /Y "C:\rbbasic-portable\lib\SDL2-mingw32\i686-w64-mingw32\bin\SDL2_image.dll" . >nul 2>&1
+)
+if exist "C:\rbbasic-portable\lib\SDL2-mingw32\i686-w64-mingw32\bin\SDL2_mixer.dll" (
+    copy /Y "C:\rbbasic-portable\lib\SDL2-mingw32\i686-w64-mingw32\bin\SDL2_mixer.dll" . >nul 2>&1
+)
+echo.
 
 REM Compilation complete

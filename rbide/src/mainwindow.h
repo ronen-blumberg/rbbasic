@@ -5,7 +5,9 @@
 #define MAINWINDOW_H
 
 #include <windows.h>
+#include <commdlg.h>
 #include <string>
+#include <vector>
 #include <map>
 
 // Forward declare Scintilla types if not already defined
@@ -43,6 +45,22 @@ private:
     bool m_modified;
     bool m_outputVisible;
     int m_splitterPos;        // Splitter position from bottom
+
+    // Find/Replace
+    HWND m_hwndFindReplace;
+    FINDREPLACE m_fr;
+    char m_findText[256];
+    char m_replaceText[256];
+    UINT m_findReplaceMsg;
+
+    // Recent files
+    std::vector<std::string> m_recentFiles;
+    HMENU m_hRecentMenu;
+
+    // Error navigation
+    struct ErrorInfo { int line; std::string message; };
+    std::vector<ErrorInfo> m_errors;
+    int m_currentError;
     
     // Scintilla direct access
     sptr_t m_pScintilla;
@@ -81,12 +99,18 @@ private:
     void EditPaste();
     void EditSelectAll();
     void EditFind();
+    void EditReplace();
+    void EditFindNext(bool forward = true);
+    void EditGoto();
+    void HandleFindReplace(LPARAM lParam);
     
     // Compilation and running
     void RunCompile();
     void RunProgram();
     void RunCompileAndRun();
     void StopProgram();
+    void GotoNextError();
+    void ParseErrors(const std::string& output);
     
     // Helpers
     void AppendOutput(const char* text);
@@ -95,6 +119,20 @@ private:
     void SetEditorText(const std::string& text);
     bool IsModified();
     void SetModified(bool modified);
+
+    // Auto-complete
+    void ShowAutoComplete();
+
+    // Context help
+    void ContextHelp();
+    std::string GetWordAtCursor();
+
+    // Recent files
+    void LoadRecentFiles();
+    void SaveRecentFiles();
+    void AddRecentFile(const std::string& path);
+    void UpdateRecentFilesMenu();
+    void OpenRecentFile(int index);
 	
 	void HighlightSyntax();
     void ProcessLine(const char* line, int len, int startPos);

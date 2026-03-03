@@ -1,0 +1,4 @@
+C:\rbbasic-portable\examples\QBHikikomori\hikikomori.bas
+C:\qb64_programming\QB64-projects\HOMLESSNESS - A MIND SIMULATION V2.0.bas
+C:\rbbasic-portable\examples\qb64_demo.bas
+C:\rbbasic-portable\examples\graphics.bas

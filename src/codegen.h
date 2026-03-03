@@ -24,6 +24,19 @@ private:
     
     std::unordered_map<int, int> line_labels;
     std::vector<std::string> data_values;
+    std::unordered_map<std::string, std::string> constants;  // name -> C expression string
+
+    // User-defined types
+    struct TypeInfo {
+        std::string name;
+        std::vector<TypeField> fields;
+    };
+    std::unordered_map<std::string, TypeInfo> user_types;  // type_name -> TypeInfo
+    std::unordered_map<std::string, std::string> typed_variables;  // var_name -> type_name
+    std::unordered_set<int> on_error_targets;  // BASIC line numbers used as ON ERROR GOTO targets
+    int error_check_counter;  // counter for resume-next labels
+    bool has_error_handling;  // true if ON ERROR GOTO is used
+    int current_basic_line;  // current BASIC line being generated
     int next_label;
     int indent_level;
     bool needs_math_h;
@@ -31,6 +44,10 @@ private:
     bool needs_time_h;
     bool needs_sdl;
     bool needs_sound;
+    bool has_display_stmt;   // true if _DISPLAY is used (disables auto-present)
+    bool needs_sdl_image;    // true if _LOADIMAGE is used
+    bool needs_sdl_mixer;    // true if _SNDOPEN etc. are used
+    bool needs_console;      // true if INPUT/LINE INPUT/PRINT used (for console allocation in graphics mode)
     
     void write(const std::string& code);
     void writeln(const std::string& code);
@@ -79,7 +96,42 @@ private:
     void generate_paint_stmt(const PaintStmt* stmt);
     void generate_sound_stmt(const SoundStmt* stmt);
     void generate_play_stmt(const PlayStmt* stmt);
-    
+    void generate_select_case_stmt(const SelectCaseStmt* stmt);
+    void generate_exit_stmt(const ExitStmt* stmt);
+    void generate_const_stmt(const ConstStmt* stmt);
+    void generate_swap_stmt(const SwapStmt* stmt);
+    void generate_redim_stmt(const RedimStmt* stmt);
+    void generate_erase_stmt(const EraseStmt* stmt);
+    void generate_on_error_stmt(const OnErrorStmt* stmt);
+    void generate_resume_stmt(const ResumeStmt* stmt);
+    void generate_write_stmt(const WriteStmt* stmt);
+    void generate_seek_stmt(const SeekStmt* stmt);
+    void generate_get_file_stmt(const GetFileStmt* stmt);
+    void generate_put_file_stmt(const PutFileStmt* stmt);
+    void generate_mid_assign_stmt(const MidAssignStmt* stmt);
+    void generate_print_using(const PrintStmt* stmt);
+    void generate_type_def_stmt(const TypeDefStmt* stmt);
+    void generate_draw_stmt(const DrawStmt* stmt);
+    void generate_palette_stmt(const PaletteStmt* stmt);
+    void generate_view_stmt(const ViewStmt* stmt);
+    void generate_window_stmt(const WindowStmt* stmt);
+    void generate_pcopy_stmt(const PcopyStmt* stmt);
+    void generate_get_gfx_stmt(const GetGfxStmt* stmt);
+    void generate_put_gfx_stmt(const PutGfxStmt* stmt);
+    void generate_shell_stmt(const ShellStmt* stmt);
+    void generate_poke_stmt(const PokeStmt* stmt);
+    void generate_def_seg_stmt(const DefSegStmt* stmt);
+
+    // Phase 6: QB64 Extensions
+    void generate_display_stmt(const DisplayStmt* stmt);
+    void generate_limit_stmt(const LimitStmt* stmt);
+    void generate_freeimage_stmt(const FreeImageStmt* stmt);
+    void generate_putimage_stmt(const PutImageStmt* stmt);
+    void generate_printstring_stmt(const PrintStringStmt* stmt);
+    void generate_sndplay_stmt(const SndPlayStmt* stmt);
+    void generate_sndstop_stmt(const SndStopStmt* stmt);
+    void generate_sndvol_stmt(const SndVolStmt* stmt);
+
     void generate_expression(const ASTNode* expr, bool is_string_context = false);
     std::string expression_to_string(const ASTNode* expr);  // Helper to get expression as string
     void generate_function_call(const FunctionCallNode* func);
@@ -99,6 +151,8 @@ public:
     ~CodeGenerator();
     void generate(const Program* program);
     bool uses_graphics() const { return needs_sdl; }
+    bool uses_sdl_image() const { return needs_sdl_image; }
+    bool uses_sdl_mixer() const { return needs_sdl_mixer; }
 };
 
 #endif

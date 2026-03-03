@@ -1,0 +1,15 @@
+=== MID$ Assignment Tests ===
+
+Test 1: Basic MID$ assignment
+Before: Hello World
+After:  Hello BASIC
+
+Test 2: Shorter replacement
+Before: ABCDEFGHIJ
+After:  ABCXYFGHIJ
+
+Test 3: Without length parameter
+Before: 0123456789
+After:  01AB456789
+
+All MID$ assignment tests passed!

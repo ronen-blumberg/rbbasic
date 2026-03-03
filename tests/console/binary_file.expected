@@ -1,0 +1,13 @@
+=== Binary/Random File Tests ===
+
+Test 1: OPEN FOR BINARY
+Binary file written
+Read back: HELLO
+
+Test 2: OPEN FOR RANDOM
+Random file written with 3 records
+Record 2: Record Two
+Record 1: Record One
+Record 3: Record Three
+
+All binary/random file tests passed!

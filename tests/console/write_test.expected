@@ -1,0 +1,16 @@
+=== WRITE # Tests ===
+
+Test 1: WRITE # to file
+File written successfully
+
+Test 2: Read back file
+Line 1: "Hello",42,"World"
+Line 2: "Second line",99
+
+Test 3: LOF function
+File length (LOF) =38
+
+Test 4: SEEK statement
+SEEK to position 1 - OK
+
+All WRITE/SEEK tests passed!

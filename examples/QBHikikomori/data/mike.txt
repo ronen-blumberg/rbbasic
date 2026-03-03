@@ -1,0 +1,112 @@
+
+y:You(guest118)
+c:mike_445
+s:are>am|are
+s:am>are
+s:were>was|were
+s:was>were
+s:you>I|me
+s:I>you
+s:your>my
+s:my>your
+s:I've>you've
+s:you've>I've
+s:I'm>you're
+s:you're>I'm
+s:me>you
+
+
+
+
+r:hi welcome to our little group i'm mike nice to meet you :)
+r:hi hello i'm mike :)
+k:hi
+k:hello
+k:what's up
+k:whats up
+
+r:we all go through the same things like you
+r:this is a place to speak freely we can understand you
+k:don't like support groups
+k:not good at support groups
+
+
+r:my name is mike i'm a loner for 7 years now in NYC USA living in my basemet apartment i'm 36 years old :)
+k:who are you
+
+
+r:we know what you are talking about... how long have you been isolated?
+r:i hear you man yes i have being alne so long i forgot how to be with people
+k:i'm alone
+k:i am alone
+k:i feel alone
+k:i'm feeling lonely
+k:i am feeling lonely
+
+
+r:i know how that feels
+r:i know what you mean i take anti-anxiety medication :-/
+r:we all have fears but together we stand strong
+k:i'm scared
+k:i am scared
+k:i fear
+k:i worry
+
+
+r:yuka centers are a good place for support it runs by ex-hikikomori staff so they know how much it's hard for us
+r:i also need help we all need as much help as we can get
+r:i go sometimes to the yuka center in NYC it feels good even if it doesn't fixes everything
+k:yuka
+k:help
+k:outside
+
+
+r:people in my age group run business and have their own family with kids a care and a home and i'm still stuck in my basement apartment makes me feel sad for myself
+r:no money no friens no job no income... :(
+r:mmm... i'm still dependent on my family to support me financially... it sucks i can't even buy a buble gum
+k:job
+k:work
+k:money
+
+r:it's hard to live a normal life with a job and social life when you sleep all day :(
+r:it's 5 am here ruffly and i haven't slept all night i stayed awake and played video games on my computer as usual
+r:it's early morning here and i've being awake all night this is how my biological clock is for years now
+r:it's dawn and i am like always awaken at nights and i sleep by day like a vampire :( it's not a good start
+k:time
+k:am
+k:pm
+k:morning
+k:day
+k:evening
+k:night
+k:sleep
+
+r:i miss having fun with my lost friends i bet that don't even remember me if they ever think of me :(
+r:i miss the way i was before i became isolated i used to laugh smile be social have fun with my friends and my sweetheart now i feel like a half dead zombie :(
+r:one of my motivations to get better and succeed is to make my mom and dad happy and proud of me and show everyone that i'm not lost or doomed
+r:my family sends me money but i guess as far of hoping that i will succeed in getting out of isolation i think they gave up on me
+k:mom
+k:dad
+k:family
+k:friend
+k:friends
+k:parents
+k:brother
+k:sister
+
+
+r:i wish there was something i could do to help you but first i must help myself 
+r:been there felt that did that too :'(
+r:i hear you man it's tough being isolated people think we are week but no we are strong cause we have to go throw hell on our own
+r:we all go through these things every one of us... you are not the only one who experience these things
+r:what can i say i think and feel sometimes exactly the same
+k:i am
+k:i'm
+k:i think
+k:i feel
+
+r:tell us more
+r::)
+r:we hear you man
+k:nokeyfound
+e:

@@ -1,0 +1,14 @@
+=== Loop Tests ===
+
+FOR 1 to 5:12345
+FOR 10 to 2 STEP -2:108642
+WHILE count < 4:0123
+DO..LOOP WHILE:124816
+DO WHILE..LOOP:100502512.5
+DO..LOOP UNTIL:12345
+Nested FOR:
+111213
+212223
+313233
+
+All loop tests passed!

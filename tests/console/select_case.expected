@@ -1,0 +1,18 @@
+=== SELECT CASE Tests ===
+
+Score:85
+Very Good!
+
+Age:25
+Adult
+
+Temperature:72
+Comfortable
+
+Day:3
+Weekday
+
+Grade: B
+Good job!
+
+All SELECT CASE tests passed!

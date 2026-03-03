@@ -23,9 +23,15 @@ Parser::Parser(const std::vector<Token>& toks)
         // Array functions
         "LBOUND", "UBOUND",
         // File functions
-        "EOF", "LOF",
+        "EOF", "LOF", "LOC",
         // Graphics functions
-        "POINT"
+        "POINT",
+        // Phase 4: System functions
+        "PEEK", "ENVIRON$", "COMMAND$",
+        // Phase 6: QB64 extension functions
+        "_NEWIMAGE", "_LOADIMAGE", "_RGB", "_RGB32",
+        "_MOUSEX", "_MOUSEY", "_MOUSEBUTTON", "_KEYDOWN", "_MOUSEWHEEL",
+        "_SNDOPEN"
     };
 }
 
@@ -118,8 +124,8 @@ std::unique_ptr<ASTNode> Parser::parse_primary() {
         
         // Check if this is a zero-argument function that can be called without ()
         // In BASIC: RND, TIMER, INKEY$, DATE$, TIME$
-        if (name == "RND" || name == "TIMER" || name == "INKEY$" || 
-            name == "DATE$" || name == "TIME$") {
+        if (name == "RND" || name == "TIMER" || name == "INKEY$" ||
+            name == "DATE$" || name == "TIME$" || name == "COMMAND$") {
             // Treat as function call with no arguments
             auto func_call = std::make_unique<FunctionCallNode>(name);
             return func_call;
@@ -285,26 +291,41 @@ std::unique_ptr<ASTNode> Parser::parse_print_stmt() {
         }
     }
     
+    // Check for PRINT USING
+    if (check(TokenType::IDENTIFIER) && current_token.value == "USING") {
+        advance();  // consume USING
+        print_stmt->using_format = parse_expression();
+        expect(TokenType::SEMICOLON);  // PRINT USING format$; expr1; expr2; ...
+
+        // Parse expressions separated by semicolons or commas
+        while (!check(TokenType::NEWLINE) && !check(TokenType::COLON) && !check(TokenType::END_OF_FILE)) {
+            print_stmt->expressions.push_back(parse_expression());
+            print_stmt->use_semicolon.push_back(true);
+            if (!match(TokenType::SEMICOLON) && !match(TokenType::COMMA)) {
+                break;
+            }
+        }
+        return print_stmt;
+    }
+
     if (!check(TokenType::NEWLINE) && !check(TokenType::COLON) && !check(TokenType::END_OF_FILE)) {
         print_stmt->expressions.push_back(parse_expression());
         print_stmt->use_semicolon.push_back(false);
-        
+
         while (match(TokenType::COMMA) || match(TokenType::SEMICOLON)) {
             bool was_semicolon = (tokens[pos - 1].type == TokenType::SEMICOLON);
-            
+
             if (check(TokenType::NEWLINE) || check(TokenType::END_OF_FILE) || check(TokenType::COLON)) {
-                // Trailing comma or semicolon - update the last entry
-                if (!print_stmt->use_semicolon.empty()) {
-                    print_stmt->use_semicolon.back() = was_semicolon;
-                }
+                // Trailing comma or semicolon - suppress newline
+                print_stmt->has_trailing_separator = true;
                 break;
             }
-            
+
             print_stmt->expressions.push_back(parse_expression());
             print_stmt->use_semicolon.push_back(was_semicolon);
         }
     }
-    
+
     return print_stmt;
 }
 
@@ -322,7 +343,7 @@ std::unique_ptr<ASTNode> Parser::parse_rem_stmt() {
 
 std::unique_ptr<ASTNode> Parser::parse_let_stmt() {
     bool has_let = match(TokenType::LET);
-    
+
     if (!check(TokenType::IDENTIFIER)) {
         if (has_let) {
             error("Expected variable name after LET");
@@ -330,9 +351,37 @@ std::unique_ptr<ASTNode> Parser::parse_let_stmt() {
             error("Expected LET statement or valid statement");
         }
     }
-    
+
     std::string var_name = current_token.value;
-    advance();
+
+    // Check for MID$ assignment: MID$(var$, start[, len]) = replacement
+    if (var_name == "MID$" && !has_let) {
+        advance();  // consume MID$
+        expect(TokenType::LPAREN);
+
+        auto mid_stmt = std::make_unique<MidAssignStmt>();
+
+        if (!check(TokenType::IDENTIFIER)) {
+            error("Expected string variable in MID$ assignment");
+        }
+        mid_stmt->variable = current_token.value;
+        advance();
+
+        expect(TokenType::COMMA);
+        mid_stmt->start = parse_expression();
+
+        if (match(TokenType::COMMA)) {
+            mid_stmt->length = parse_expression();
+        }
+
+        expect(TokenType::RPAREN);
+        expect(TokenType::EQUALS);
+        mid_stmt->replacement = parse_expression();
+
+        return mid_stmt;
+    }
+
+    advance();  // consume var_name
     
     // Check for array access
     std::unique_ptr<ASTNode> array_access = nullptr;
@@ -882,9 +931,14 @@ std::unique_ptr<ASTNode> Parser::parse_restore_stmt() {
 
 std::unique_ptr<ASTNode> Parser::parse_dim_stmt() {
     expect(TokenType::DIM);
-    
+
+    // Accept and skip SHARED or STATIC qualifier
+    if (check(TokenType::SHARED) || check(TokenType::STATIC)) {
+        advance();
+    }
+
     auto dim_stmt = std::make_unique<DimStmt>();
-    
+
     // DIM can have multiple arrays: DIM A(10), B(5), C(3,3)
     do {
         if (!check(TokenType::IDENTIFIER)) {
@@ -895,7 +949,25 @@ std::unique_ptr<ASTNode> Parser::parse_dim_stmt() {
         advance();
         
         DimStmt::ArrayDecl array_decl(array_name);
-        
+
+        // Check for DIM var AS TypeName (typed variable, not array)
+        if (check(TokenType::AS)) {
+            advance();  // consume AS
+            if (!check(TokenType::IDENTIFIER)) {
+                error("Expected type name after AS");
+            }
+            std::string type_name = current_token.value;
+            advance();
+
+            // Create a DimStmt with type info
+            DimStmt::ArrayDecl typed_decl(array_name);
+            typed_decl.type_name = type_name;
+            dim_stmt->arrays.push_back(std::move(typed_decl));
+
+            if (!match(TokenType::COMMA)) break;
+            continue;
+        }
+
         expect(TokenType::LPAREN);
         
         // Parse dimensions as expressions (can be numbers or variables)
@@ -924,6 +996,73 @@ bool Parser::check_ahead_for_identifier() const {
     return false;
 }
 
+std::unique_ptr<ASTNode> Parser::parse_type_def() {
+    expect(TokenType::TYPE_KW);
+
+    auto type_def = std::make_unique<TypeDefStmt>();
+
+    if (!check(TokenType::IDENTIFIER)) {
+        error("Expected type name after TYPE");
+    }
+    type_def->type_name = current_token.value;
+    advance();
+
+    // Skip newlines
+    while (match(TokenType::NEWLINE)) {}
+
+    // Parse fields until END TYPE
+    while (!check(TokenType::END_TYPE) && !check(TokenType::END_OF_FILE)) {
+        if (check(TokenType::NEWLINE)) {
+            advance();
+            continue;
+        }
+
+        // Parse field: name AS type [* length]
+        if (!check(TokenType::IDENTIFIER)) {
+            error("Expected field name in TYPE definition");
+        }
+        std::string field_name = current_token.value;
+        advance();
+
+        expect(TokenType::AS);
+
+        // Parse type name
+        std::string field_type;
+        if (check(TokenType::IDENTIFIER)) {
+            field_type = current_token.value;
+            advance();
+        } else if (check(TokenType::INPUT)) {
+            // STRING is not a keyword in our lexer, handle as identifier
+            field_type = current_token.value;
+            advance();
+        } else {
+            error("Expected type name after AS");
+        }
+
+        // Normalize type names
+        for (auto& c : field_type) c = std::toupper(c);
+
+        int string_length = 0;
+        if (field_type == "STRING" && check(TokenType::MULTIPLY)) {
+            advance();  // consume *
+            if (!check(TokenType::NUMBER)) {
+                error("Expected string length after STRING *");
+            }
+            string_length = static_cast<int>(std::stod(current_token.value));
+            advance();
+        }
+
+        type_def->fields.emplace_back(field_name, field_type, string_length);
+
+        // Skip to next line
+        while (match(TokenType::NEWLINE) || match(TokenType::COLON)) {}
+    }
+
+    expect(TokenType::END_TYPE);
+
+    return type_def;
+}
+
 std::unique_ptr<ASTNode> Parser::parse_open_stmt() {
     expect(TokenType::OPEN);
     
@@ -938,9 +1077,9 @@ std::unique_ptr<ASTNode> Parser::parse_open_stmt() {
         advance();
     }
     
-    // Mode: INPUT, OUTPUT, or APPEND
+    // Mode: INPUT, OUTPUT, APPEND, BINARY, or RANDOM
     // INPUT can be tokenized as INPUT (statement) or INPUT_KW (file mode)
-    if (check(TokenType::INPUT) || check(TokenType::INPUT_KW) || 
+    if (check(TokenType::INPUT) || check(TokenType::INPUT_KW) ||
         check(TokenType::OUTPUT_KW) || check(TokenType::APPEND)) {
         if (check(TokenType::INPUT)) {
             open_stmt->mode = "INPUT";
@@ -948,20 +1087,35 @@ std::unique_ptr<ASTNode> Parser::parse_open_stmt() {
             open_stmt->mode = current_token.value;
         }
         advance();
+    } else if (check(TokenType::IDENTIFIER) &&
+               (current_token.value == "BINARY" || current_token.value == "RANDOM")) {
+        open_stmt->mode = current_token.value;
+        advance();
     } else {
-        error("Expected INPUT, OUTPUT, or APPEND after FOR");
+        error("Expected INPUT, OUTPUT, APPEND, BINARY, or RANDOM after FOR");
     }
-    
+
     expect(TokenType::AS);
     expect(TokenType::HASH);
-    
+
     if (!check(TokenType::NUMBER)) {
         error("Expected file number");
     }
-    
+
     open_stmt->file_number = static_cast<int>(std::stod(current_token.value));
     advance();
-    
+
+    // Check for LEN = n (RANDOM mode)
+    if (check(TokenType::IDENTIFIER) && current_token.value == "LEN") {
+        advance();  // consume LEN
+        expect(TokenType::EQUALS);
+        if (!check(TokenType::NUMBER)) {
+            error("Expected record length after LEN =");
+        }
+        open_stmt->record_length = static_cast<int>(std::stod(current_token.value));
+        advance();
+    }
+
     return open_stmt;
 }
 
@@ -1234,9 +1388,23 @@ std::unique_ptr<ASTNode> Parser::parse_sleep_stmt() {
 
 std::unique_ptr<ASTNode> Parser::parse_on_stmt() {
     expect(TokenType::ON);
-    
+
+    // Check for ON ERROR GOTO
+    if (check(TokenType::IDENTIFIER) && current_token.value == "ERROR") {
+        advance();  // consume ERROR
+        expect(TokenType::GOTO);
+
+        if (!check(TokenType::NUMBER)) {
+            error("Expected line number after ON ERROR GOTO");
+        }
+        int target_line = static_cast<int>(std::stod(current_token.value));
+        advance();
+
+        return std::make_unique<OnErrorStmt>(target_line);
+    }
+
     auto expr = parse_expression();
-    
+
     if (check(TokenType::GOTO)) {
         advance();
         
@@ -1355,10 +1523,11 @@ std::unique_ptr<Statement> Parser::parse_line() {
     std::unique_ptr<ASTNode> stmt = nullptr;
     
     // Skip empty lines
-    if (check(TokenType::NEWLINE) || check(TokenType::END_OF_FILE) || 
-        check(TokenType::NEXT) || check(TokenType::WEND) || 
+    if (check(TokenType::NEWLINE) || check(TokenType::END_OF_FILE) ||
+        check(TokenType::NEXT) || check(TokenType::WEND) ||
         check(TokenType::LOOP) || check(TokenType::END_IF) ||
-        check(TokenType::END_SUB) || check(TokenType::END_FUNCTION) ||\
+        check(TokenType::END_SUB) || check(TokenType::END_FUNCTION) ||
+        check(TokenType::END_SELECT) || check(TokenType::END_TYPE) ||
         check(TokenType::ELSE) || check(TokenType::ELSEIF)) {
         return nullptr;
     }
@@ -1394,6 +1563,8 @@ std::unique_ptr<Statement> Parser::parse_line() {
         stmt = parse_read_stmt();
     } else if (check(TokenType::RESTORE)) {
         stmt = parse_restore_stmt();
+    } else if (check(TokenType::TYPE_KW)) {
+        stmt = parse_type_def();
     } else if (check(TokenType::DIM)) {
         stmt = parse_dim_stmt();
     } else if (check(TokenType::OPEN)) {
@@ -1432,12 +1603,79 @@ std::unique_ptr<Statement> Parser::parse_line() {
         stmt = parse_sound_stmt();
     } else if (check(TokenType::PLAY_KW)) {
         stmt = parse_play_stmt();
+    } else if (check(TokenType::SELECT)) {
+        stmt = parse_select_case_stmt();
+    } else if (check(TokenType::EXIT)) {
+        stmt = parse_exit_stmt();
+    } else if (check(TokenType::CONST_KW)) {
+        stmt = parse_const_stmt();
+    } else if (check(TokenType::SWAP)) {
+        stmt = parse_swap_stmt();
+    } else if (check(TokenType::DECLARE)) {
+        stmt = parse_declare_stmt();
+    } else if (check(TokenType::REDIM)) {
+        stmt = parse_redim_stmt();
+    } else if (check(TokenType::ERASE)) {
+        stmt = parse_erase_stmt();
+    } else if (check(TokenType::WRITE_KW)) {
+        stmt = parse_write_stmt();
+    } else if (check(TokenType::SEEK_KW)) {
+        stmt = parse_seek_stmt();
+    } else if (check(TokenType::GET_KW)) {
+        stmt = parse_get_stmt();
+    } else if (check(TokenType::PUT_KW)) {
+        stmt = parse_put_stmt();
+    } else if (check(TokenType::RESUME)) {
+        stmt = parse_resume_stmt();
+    } else if (check(TokenType::DRAW)) {
+        stmt = parse_draw_stmt();
+    } else if (check(TokenType::PALETTE_KW)) {
+        stmt = parse_palette_stmt();
+    } else if (check(TokenType::VIEW_KW)) {
+        stmt = parse_view_stmt();
+    } else if (check(TokenType::WINDOW_KW)) {
+        stmt = parse_window_stmt();
+    } else if (check(TokenType::PCOPY)) {
+        stmt = parse_pcopy_stmt();
+    } else if (check(TokenType::SHELL_KW)) {
+        stmt = parse_shell_stmt();
+    } else if (check(TokenType::SYSTEM_KW)) {
+        advance();  // consume SYSTEM
+        stmt = std::make_unique<EndStmt>();  // SYSTEM = END (exit program)
+    } else if (check(TokenType::POKE)) {
+        stmt = parse_poke_stmt();
+    } else if (check(TokenType::DEF)) {
+        // Check for DEF SEG
+        if (pos + 1 < tokens.size() && tokens[pos + 1].type == TokenType::IDENTIFIER &&
+            tokens[pos + 1].value == "SEG") {
+            stmt = parse_def_seg_stmt();
+        } else {
+            // DEF FN is handled in the main parse() loop, but allow it here too
+            auto def_fn = parse_def_fn_stmt();
+            stmt = std::move(def_fn);
+        }
+    } else if (check(TokenType::QB_DISPLAY)) {
+        stmt = parse_display_stmt();
+    } else if (check(TokenType::QB_LIMIT)) {
+        stmt = parse_limit_stmt();
+    } else if (check(TokenType::QB_FREEIMAGE)) {
+        stmt = parse_freeimage_stmt();
+    } else if (check(TokenType::QB_PUTIMAGE)) {
+        stmt = parse_putimage_stmt();
+    } else if (check(TokenType::QB_PRINTSTRING)) {
+        stmt = parse_printstring_stmt();
+    } else if (check(TokenType::QB_SNDPLAY)) {
+        stmt = parse_sndplay_stmt();
+    } else if (check(TokenType::QB_SNDSTOP)) {
+        stmt = parse_sndstop_stmt();
+    } else if (check(TokenType::QB_SNDVOL)) {
+        stmt = parse_sndvol_stmt();
     } else if (check(TokenType::LET) || check(TokenType::IDENTIFIER)) {
         stmt = parse_let_stmt();
     } else {
         error("Unexpected token: " + std::string(token_type_to_string(current_token.type)));
     }
-    
+
     return std::make_unique<Statement>(line_num, std::move(stmt));
 }
 
@@ -1445,12 +1683,13 @@ std::unique_ptr<Statement> Parser::parse_line() {
 // Used for parsing statements inside single-line IF THEN/ELSE with colons
 std::unique_ptr<ASTNode> Parser::parse_statement() {
     std::unique_ptr<ASTNode> stmt = nullptr;
-    
+
     // Skip empty/terminator tokens
-    if (check(TokenType::NEWLINE) || check(TokenType::END_OF_FILE) || 
-        check(TokenType::NEXT) || check(TokenType::WEND) || 
+    if (check(TokenType::NEWLINE) || check(TokenType::END_OF_FILE) ||
+        check(TokenType::NEXT) || check(TokenType::WEND) ||
         check(TokenType::LOOP) || check(TokenType::END_IF) ||
         check(TokenType::END_SUB) || check(TokenType::END_FUNCTION) ||
+        check(TokenType::END_SELECT) || check(TokenType::END_TYPE) ||
         check(TokenType::ELSE) || check(TokenType::ELSEIF) ||
         check(TokenType::COLON)) {
         return nullptr;
@@ -1487,6 +1726,8 @@ std::unique_ptr<ASTNode> Parser::parse_statement() {
         stmt = parse_read_stmt();
     } else if (check(TokenType::RESTORE)) {
         stmt = parse_restore_stmt();
+    } else if (check(TokenType::TYPE_KW)) {
+        stmt = parse_type_def();
     } else if (check(TokenType::DIM)) {
         stmt = parse_dim_stmt();
     } else if (check(TokenType::OPEN)) {
@@ -1525,13 +1766,508 @@ std::unique_ptr<ASTNode> Parser::parse_statement() {
         stmt = parse_sound_stmt();
     } else if (check(TokenType::PLAY_KW)) {
         stmt = parse_play_stmt();
+    } else if (check(TokenType::SELECT)) {
+        stmt = parse_select_case_stmt();
+    } else if (check(TokenType::EXIT)) {
+        stmt = parse_exit_stmt();
+    } else if (check(TokenType::CONST_KW)) {
+        stmt = parse_const_stmt();
+    } else if (check(TokenType::SWAP)) {
+        stmt = parse_swap_stmt();
+    } else if (check(TokenType::DECLARE)) {
+        stmt = parse_declare_stmt();
+    } else if (check(TokenType::REDIM)) {
+        stmt = parse_redim_stmt();
+    } else if (check(TokenType::ERASE)) {
+        stmt = parse_erase_stmt();
+    } else if (check(TokenType::WRITE_KW)) {
+        stmt = parse_write_stmt();
+    } else if (check(TokenType::SEEK_KW)) {
+        stmt = parse_seek_stmt();
+    } else if (check(TokenType::GET_KW)) {
+        stmt = parse_get_stmt();
+    } else if (check(TokenType::PUT_KW)) {
+        stmt = parse_put_stmt();
+    } else if (check(TokenType::RESUME)) {
+        stmt = parse_resume_stmt();
+    } else if (check(TokenType::DRAW)) {
+        stmt = parse_draw_stmt();
+    } else if (check(TokenType::PALETTE_KW)) {
+        stmt = parse_palette_stmt();
+    } else if (check(TokenType::VIEW_KW)) {
+        stmt = parse_view_stmt();
+    } else if (check(TokenType::WINDOW_KW)) {
+        stmt = parse_window_stmt();
+    } else if (check(TokenType::PCOPY)) {
+        stmt = parse_pcopy_stmt();
+    } else if (check(TokenType::SHELL_KW)) {
+        stmt = parse_shell_stmt();
+    } else if (check(TokenType::SYSTEM_KW)) {
+        advance();  // consume SYSTEM
+        stmt = std::make_unique<EndStmt>();  // SYSTEM = END (exit program)
+    } else if (check(TokenType::POKE)) {
+        stmt = parse_poke_stmt();
+    } else if (check(TokenType::DEF)) {
+        // Check for DEF SEG
+        if (pos + 1 < tokens.size() && tokens[pos + 1].type == TokenType::IDENTIFIER &&
+            tokens[pos + 1].value == "SEG") {
+            stmt = parse_def_seg_stmt();
+        } else {
+            auto def_fn = parse_def_fn_stmt();
+            stmt = std::move(def_fn);
+        }
+    } else if (check(TokenType::QB_DISPLAY)) {
+        stmt = parse_display_stmt();
+    } else if (check(TokenType::QB_LIMIT)) {
+        stmt = parse_limit_stmt();
+    } else if (check(TokenType::QB_FREEIMAGE)) {
+        stmt = parse_freeimage_stmt();
+    } else if (check(TokenType::QB_PUTIMAGE)) {
+        stmt = parse_putimage_stmt();
+    } else if (check(TokenType::QB_PRINTSTRING)) {
+        stmt = parse_printstring_stmt();
+    } else if (check(TokenType::QB_SNDPLAY)) {
+        stmt = parse_sndplay_stmt();
+    } else if (check(TokenType::QB_SNDSTOP)) {
+        stmt = parse_sndstop_stmt();
+    } else if (check(TokenType::QB_SNDVOL)) {
+        stmt = parse_sndvol_stmt();
     } else if (check(TokenType::LET) || check(TokenType::IDENTIFIER)) {
         stmt = parse_let_stmt();
     } else {
         error("Unexpected token: " + std::string(token_type_to_string(current_token.type)));
     }
-    
+
     return stmt;
+}
+
+// ============== SELECT CASE PARSING ==============
+
+std::unique_ptr<ASTNode> Parser::parse_select_case_stmt() {
+    // SELECT CASE expression
+    expect(TokenType::SELECT);
+    expect(TokenType::CASE);
+
+    auto stmt = std::make_unique<SelectCaseStmt>();
+    stmt->test_expression = parse_expression();
+
+    skip_newlines();
+
+    // Parse CASE clauses
+    while (check(TokenType::CASE) && !check(TokenType::END_SELECT) && !check(TokenType::END_OF_FILE)) {
+        advance(); // consume CASE
+
+        SelectCaseStmt::CaseClause clause;
+
+        // Check for CASE ELSE
+        if (check(TokenType::ELSE)) {
+            advance(); // consume ELSE
+            clause.is_else = true;
+        } else {
+            // Parse case tests (comma-separated)
+            do {
+                SelectCaseStmt::CaseClause::CaseTest test;
+
+                // Check for CASE IS <op> expr
+                if (check(TokenType::IDENTIFIER) && current_token.value == "IS") {
+                    advance(); // consume IS
+                    test.kind = SelectCaseStmt::CaseClause::CaseTest::IS_COMPARE;
+
+                    // Get comparison operator
+                    if (check(TokenType::EQUALS)) {
+                        test.is_op = "=";
+                    } else if (check(TokenType::LESS)) {
+                        test.is_op = "<";
+                    } else if (check(TokenType::GREATER)) {
+                        test.is_op = ">";
+                    } else if (check(TokenType::LESS_EQUAL)) {
+                        test.is_op = "<=";
+                    } else if (check(TokenType::GREATER_EQUAL)) {
+                        test.is_op = ">=";
+                    } else if (check(TokenType::NOT_EQUAL)) {
+                        test.is_op = "<>";
+                    } else {
+                        error("Expected comparison operator after IS");
+                    }
+                    advance(); // consume operator
+
+                    test.value = parse_expression();
+                } else {
+                    // Parse value expression
+                    test.value = parse_expression();
+
+                    // Check for TO (range)
+                    if (check(TokenType::TO)) {
+                        advance(); // consume TO
+                        test.kind = SelectCaseStmt::CaseClause::CaseTest::RANGE;
+                        test.range_end = parse_expression();
+                    } else {
+                        test.kind = SelectCaseStmt::CaseClause::CaseTest::VALUE;
+                    }
+                }
+
+                clause.tests.push_back(std::move(test));
+            } while (match(TokenType::COMMA));
+        }
+
+        skip_newlines();
+
+        // Parse body statements until next CASE or END SELECT
+        while (!check(TokenType::CASE) && !check(TokenType::END_SELECT) && !check(TokenType::END_OF_FILE)) {
+            auto line = parse_line();
+            if (line) {
+                clause.body.push_back(std::move(line));
+            }
+            skip_newlines();
+        }
+
+        stmt->cases.push_back(std::move(clause));
+    }
+
+    expect(TokenType::END_SELECT);
+
+    return stmt;
+}
+
+// ============== EXIT PARSING ==============
+
+std::unique_ptr<ASTNode> Parser::parse_exit_stmt() {
+    expect(TokenType::EXIT);
+
+    std::string exit_type;
+    if (check(TokenType::FOR)) {
+        exit_type = "FOR";
+        advance();
+    } else if (check(TokenType::DO)) {
+        exit_type = "DO";
+        advance();
+    } else if (check(TokenType::WHILE)) {
+        exit_type = "WHILE";
+        advance();
+    } else if (check(TokenType::SUB)) {
+        exit_type = "SUB";
+        advance();
+    } else if (check(TokenType::FUNCTION)) {
+        exit_type = "FUNCTION";
+        advance();
+    } else {
+        error("Expected FOR, DO, WHILE, SUB, or FUNCTION after EXIT");
+    }
+
+    return std::make_unique<ExitStmt>(exit_type);
+}
+
+// ============== CONST PARSING ==============
+
+std::unique_ptr<ASTNode> Parser::parse_const_stmt() {
+    expect(TokenType::CONST_KW);
+
+    if (!check(TokenType::IDENTIFIER)) {
+        error("Expected constant name after CONST");
+    }
+    std::string name = current_token.value;
+    advance();
+
+    expect(TokenType::EQUALS);
+
+    auto stmt = std::make_unique<ConstStmt>(name);
+    stmt->value = parse_expression();
+
+    return stmt;
+}
+
+// ============== SWAP PARSING ==============
+
+std::unique_ptr<ASTNode> Parser::parse_swap_stmt() {
+    expect(TokenType::SWAP);
+
+    auto stmt = std::make_unique<SwapStmt>();
+
+    if (!check(TokenType::IDENTIFIER)) {
+        error("Expected variable name after SWAP");
+    }
+    stmt->var1 = current_token.value;
+    advance();
+
+    // Check for array access
+    if (check(TokenType::LPAREN)) {
+        auto arr = std::make_unique<ArrayAccessNode>(stmt->var1);
+        advance(); // consume (
+        arr->indices.push_back(parse_expression());
+        while (match(TokenType::COMMA)) {
+            arr->indices.push_back(parse_expression());
+        }
+        expect(TokenType::RPAREN);
+        stmt->array1 = std::move(arr);
+    }
+
+    expect(TokenType::COMMA);
+
+    if (!check(TokenType::IDENTIFIER)) {
+        error("Expected variable name after comma in SWAP");
+    }
+    stmt->var2 = current_token.value;
+    advance();
+
+    // Check for array access
+    if (check(TokenType::LPAREN)) {
+        auto arr = std::make_unique<ArrayAccessNode>(stmt->var2);
+        advance(); // consume (
+        arr->indices.push_back(parse_expression());
+        while (match(TokenType::COMMA)) {
+            arr->indices.push_back(parse_expression());
+        }
+        expect(TokenType::RPAREN);
+        stmt->array2 = std::move(arr);
+    }
+
+    return stmt;
+}
+
+// ============== DECLARE PARSING ==============
+
+std::unique_ptr<ASTNode> Parser::parse_declare_stmt() {
+    expect(TokenType::DECLARE);
+
+    auto stmt = std::make_unique<DeclareStmt>();
+
+    if (check(TokenType::SUB)) {
+        stmt->kind = "SUB";
+        advance();
+    } else if (check(TokenType::FUNCTION)) {
+        stmt->kind = "FUNCTION";
+        advance();
+    } else {
+        error("Expected SUB or FUNCTION after DECLARE");
+    }
+
+    if (!check(TokenType::IDENTIFIER)) {
+        error("Expected name after DECLARE " + stmt->kind);
+    }
+    stmt->name = current_token.value;
+    advance();
+
+    // Consume optional parameter list (just skip it)
+    if (match(TokenType::LPAREN)) {
+        int depth = 1;
+        while (depth > 0 && !check(TokenType::END_OF_FILE)) {
+            if (check(TokenType::LPAREN)) depth++;
+            if (check(TokenType::RPAREN)) depth--;
+            if (depth > 0) advance();
+        }
+        if (check(TokenType::RPAREN)) advance();
+    }
+
+    return stmt;
+}
+
+// ============== REDIM PARSING ==============
+
+std::unique_ptr<ASTNode> Parser::parse_redim_stmt() {
+    expect(TokenType::REDIM);
+
+    bool preserve = false;
+    if (check(TokenType::PRESERVE)) {
+        preserve = true;
+        advance();
+    }
+
+    auto stmt = std::make_unique<RedimStmt>(preserve);
+
+    // Parse array declarations (same format as DIM)
+    do {
+        if (!check(TokenType::IDENTIFIER)) {
+            error("Expected array name in REDIM");
+        }
+        std::string name = current_token.value;
+        advance();
+
+        RedimStmt::ArrayDecl decl(name, preserve);
+
+        expect(TokenType::LPAREN);
+        decl.dimension_exprs.push_back(parse_expression());
+        while (match(TokenType::COMMA)) {
+            decl.dimension_exprs.push_back(parse_expression());
+        }
+        expect(TokenType::RPAREN);
+
+        stmt->arrays.push_back(std::move(decl));
+    } while (match(TokenType::COMMA));
+
+    return stmt;
+}
+
+// ============== ERASE PARSING ==============
+
+std::unique_ptr<ASTNode> Parser::parse_erase_stmt() {
+    expect(TokenType::ERASE);
+
+    auto stmt = std::make_unique<EraseStmt>();
+
+    if (!check(TokenType::IDENTIFIER)) {
+        error("Expected array name after ERASE");
+    }
+    stmt->array_names.push_back(current_token.value);
+    advance();
+
+    while (match(TokenType::COMMA)) {
+        if (!check(TokenType::IDENTIFIER)) {
+            error("Expected array name after comma in ERASE");
+        }
+        stmt->array_names.push_back(current_token.value);
+        advance();
+    }
+
+    return stmt;
+}
+
+// ============== WRITE # PARSING ==============
+
+std::unique_ptr<ASTNode> Parser::parse_write_stmt() {
+    expect(TokenType::WRITE_KW);
+
+    auto write_stmt = std::make_unique<WriteStmt>();
+
+    // WRITE #filenumber, expr1, expr2, ...
+    if (match(TokenType::HASH)) {
+        if (!check(TokenType::NUMBER)) {
+            error("Expected file number after #");
+        }
+        write_stmt->file_number = static_cast<int>(std::stod(current_token.value));
+        advance();
+
+        if (match(TokenType::COMMA)) {
+            // continue to parse expressions
+        }
+    }
+
+    // Parse expression list
+    while (!check(TokenType::NEWLINE) && !check(TokenType::COLON) && !check(TokenType::END_OF_FILE)) {
+        write_stmt->expressions.push_back(parse_expression());
+        if (!match(TokenType::COMMA) && !match(TokenType::SEMICOLON)) {
+            break;
+        }
+    }
+
+    return write_stmt;
+}
+
+// ============== SEEK # PARSING ==============
+
+std::unique_ptr<ASTNode> Parser::parse_seek_stmt() {
+    expect(TokenType::SEEK_KW);
+
+    auto seek_stmt = std::make_unique<SeekStmt>();
+
+    expect(TokenType::HASH);
+    if (!check(TokenType::NUMBER)) {
+        error("Expected file number after SEEK #");
+    }
+    seek_stmt->file_number = static_cast<int>(std::stod(current_token.value));
+    advance();
+
+    expect(TokenType::COMMA);
+    seek_stmt->position = parse_expression();
+
+    return seek_stmt;
+}
+
+// ============== GET # PARSING ==============
+
+std::unique_ptr<ASTNode> Parser::parse_get_stmt() {
+    expect(TokenType::GET_KW);
+
+    // Disambiguate: GET (x,y)-(x2,y2), array = graphics GET
+    //               GET #n, ... = file GET
+    if (check(TokenType::LPAREN)) {
+        return parse_get_gfx_stmt();
+    }
+
+    auto get_stmt = std::make_unique<GetFileStmt>();
+
+    expect(TokenType::HASH);
+    if (!check(TokenType::NUMBER)) {
+        error("Expected file number after GET #");
+    }
+    get_stmt->file_number = static_cast<int>(std::stod(current_token.value));
+    advance();
+
+    // Optional: , record_number
+    if (match(TokenType::COMMA)) {
+        if (!check(TokenType::COMMA) && !check(TokenType::NEWLINE) && !check(TokenType::END_OF_FILE)) {
+            get_stmt->record_number = parse_expression();
+        }
+
+        // Optional: , variable
+        if (match(TokenType::COMMA)) {
+            if (check(TokenType::IDENTIFIER)) {
+                get_stmt->variable = current_token.value;
+                advance();
+            }
+        }
+    }
+
+    return get_stmt;
+}
+
+// ============== PUT # PARSING ==============
+
+std::unique_ptr<ASTNode> Parser::parse_put_stmt() {
+    expect(TokenType::PUT_KW);
+
+    // Disambiguate: PUT (x,y), array = graphics PUT
+    //               PUT #n, ... = file PUT
+    if (check(TokenType::LPAREN)) {
+        return parse_put_gfx_stmt();
+    }
+
+    auto put_stmt = std::make_unique<PutFileStmt>();
+
+    expect(TokenType::HASH);
+    if (!check(TokenType::NUMBER)) {
+        error("Expected file number after PUT #");
+    }
+    put_stmt->file_number = static_cast<int>(std::stod(current_token.value));
+    advance();
+
+    // Optional: , record_number
+    if (match(TokenType::COMMA)) {
+        if (!check(TokenType::COMMA) && !check(TokenType::NEWLINE) && !check(TokenType::END_OF_FILE)) {
+            put_stmt->record_number = parse_expression();
+        }
+
+        // Optional: , variable
+        if (match(TokenType::COMMA)) {
+            if (check(TokenType::IDENTIFIER)) {
+                put_stmt->variable = current_token.value;
+                advance();
+            }
+        }
+    }
+
+    return put_stmt;
+}
+
+// ============== RESUME PARSING ==============
+
+std::unique_ptr<ASTNode> Parser::parse_resume_stmt() {
+    expect(TokenType::RESUME);
+
+    auto resume_stmt = std::make_unique<ResumeStmt>();
+
+    if (check(TokenType::NEXT) || (check(TokenType::IDENTIFIER) && current_token.value == "NEXT")) {
+        advance();
+        resume_stmt->resume_type = ResumeStmt::NEXT;
+    } else if (check(TokenType::NUMBER)) {
+        resume_stmt->resume_type = ResumeStmt::LINE;
+        resume_stmt->target_line = static_cast<int>(std::stod(current_token.value));
+        advance();
+    } else {
+        // Plain RESUME - default to NEXT for safety
+        resume_stmt->resume_type = ResumeStmt::NEXT;
+    }
+
+    return resume_stmt;
 }
 
 // ============== GRAPHICS PARSING ==============
@@ -1692,9 +2428,233 @@ std::unique_ptr<ASTNode> Parser::parse_play_stmt() {
     return stmt;
 }
 
+// ============== DRAW PARSING ==============
+
+std::unique_ptr<ASTNode> Parser::parse_draw_stmt() {
+    // DRAW string_expr
+    expect(TokenType::DRAW);
+
+    auto stmt = std::make_unique<DrawStmt>();
+    stmt->command_string = parse_expression();
+
+    return stmt;
+}
+
+// ============== PALETTE PARSING ==============
+
+std::unique_ptr<ASTNode> Parser::parse_palette_stmt() {
+    // PALETTE [attr, color]
+    expect(TokenType::PALETTE_KW);
+
+    auto stmt = std::make_unique<PaletteStmt>();
+
+    // Check if there are arguments (not just bare PALETTE for reset)
+    if (!check(TokenType::NEWLINE) && !check(TokenType::END_OF_FILE) &&
+        !check(TokenType::COLON) && !check(TokenType::ELSE)) {
+        stmt->attribute = parse_expression();
+        expect(TokenType::COMMA);
+        stmt->color = parse_expression();
+    }
+
+    return stmt;
+}
+
+// ============== VIEW PARSING ==============
+
+std::unique_ptr<ASTNode> Parser::parse_view_stmt() {
+    // VIEW [(x1,y1)-(x2,y2)] or VIEW (reset)
+    expect(TokenType::VIEW_KW);
+
+    auto stmt = std::make_unique<ViewStmt>();
+
+    // Check if coordinates are provided
+    if (check(TokenType::LPAREN)) {
+        expect(TokenType::LPAREN);
+        stmt->x1 = parse_expression();
+        expect(TokenType::COMMA);
+        stmt->y1 = parse_expression();
+        expect(TokenType::RPAREN);
+        expect(TokenType::MINUS);
+        expect(TokenType::LPAREN);
+        stmt->x2 = parse_expression();
+        expect(TokenType::COMMA);
+        stmt->y2 = parse_expression();
+        expect(TokenType::RPAREN);
+    }
+
+    return stmt;
+}
+
+// ============== WINDOW PARSING ==============
+
+std::unique_ptr<ASTNode> Parser::parse_window_stmt() {
+    // WINDOW [(x1,y1)-(x2,y2)] or WINDOW (reset)
+    expect(TokenType::WINDOW_KW);
+
+    auto stmt = std::make_unique<WindowStmt>();
+
+    // Check if coordinates are provided
+    if (check(TokenType::LPAREN)) {
+        expect(TokenType::LPAREN);
+        stmt->x1 = parse_expression();
+        expect(TokenType::COMMA);
+        stmt->y1 = parse_expression();
+        expect(TokenType::RPAREN);
+        expect(TokenType::MINUS);
+        expect(TokenType::LPAREN);
+        stmt->x2 = parse_expression();
+        expect(TokenType::COMMA);
+        stmt->y2 = parse_expression();
+        expect(TokenType::RPAREN);
+    }
+
+    return stmt;
+}
+
+// ============== PCOPY PARSING ==============
+
+std::unique_ptr<ASTNode> Parser::parse_pcopy_stmt() {
+    // PCOPY src, dest
+    expect(TokenType::PCOPY);
+
+    auto stmt = std::make_unique<PcopyStmt>();
+    stmt->src_page = parse_expression();
+    expect(TokenType::COMMA);
+    stmt->dest_page = parse_expression();
+
+    return stmt;
+}
+
+// ============== GET GRAPHICS PARSING ==============
+
+std::unique_ptr<ASTNode> Parser::parse_get_gfx_stmt() {
+    // GET (x1,y1)-(x2,y2), arrayname
+    // Note: GET keyword already consumed, and we know next token is LPAREN
+
+    auto stmt = std::make_unique<GetGfxStmt>();
+
+    expect(TokenType::LPAREN);
+    stmt->x1 = parse_expression();
+    expect(TokenType::COMMA);
+    stmt->y1 = parse_expression();
+    expect(TokenType::RPAREN);
+    expect(TokenType::MINUS);
+    expect(TokenType::LPAREN);
+    stmt->x2 = parse_expression();
+    expect(TokenType::COMMA);
+    stmt->y2 = parse_expression();
+    expect(TokenType::RPAREN);
+    expect(TokenType::COMMA);
+
+    if (!check(TokenType::IDENTIFIER)) {
+        error("Expected array name after GET coordinates");
+    }
+    stmt->array_name = current_token.value;
+    advance();
+
+    return stmt;
+}
+
+// ============== PUT GRAPHICS PARSING ==============
+
+std::unique_ptr<ASTNode> Parser::parse_put_gfx_stmt() {
+    // PUT (x,y), arrayname [, action]
+    // Note: PUT keyword already consumed, and we know next token is LPAREN
+
+    auto stmt = std::make_unique<PutGfxStmt>();
+
+    expect(TokenType::LPAREN);
+    stmt->x = parse_expression();
+    expect(TokenType::COMMA);
+    stmt->y = parse_expression();
+    expect(TokenType::RPAREN);
+    expect(TokenType::COMMA);
+
+    if (!check(TokenType::IDENTIFIER)) {
+        error("Expected array name after PUT coordinates");
+    }
+    stmt->array_name = current_token.value;
+    advance();
+
+    // Optional action keyword
+    if (match(TokenType::COMMA)) {
+        if (check(TokenType::IDENTIFIER) || check(TokenType::PSET)) {
+            std::string action = current_token.value;
+            advance();
+            // Normalize action name
+            if (action == "PSET") stmt->action = "PSET";
+            else if (action == "PRESET") stmt->action = "PRESET";
+            else if (action == "AND") stmt->action = "AND";
+            else if (action == "OR") stmt->action = "OR";
+            else if (action == "XOR") stmt->action = "XOR";
+            else error("Expected PSET, PRESET, AND, OR, or XOR for PUT action");
+        } else if (check(TokenType::AND)) {
+            stmt->action = "AND";
+            advance();
+        } else if (check(TokenType::OR)) {
+            stmt->action = "OR";
+            advance();
+        } else {
+            error("Expected action keyword for PUT");
+        }
+    }
+
+    return stmt;
+}
+
+// ============== SHELL STATEMENT ==============
+
+std::unique_ptr<ASTNode> Parser::parse_shell_stmt() {
+    expect(TokenType::SHELL_KW);
+
+    auto stmt = std::make_unique<ShellStmt>();
+
+    // SHELL can have an optional command string expression
+    if (!check(TokenType::NEWLINE) && !check(TokenType::END_OF_FILE) &&
+        !check(TokenType::COLON) && !check(TokenType::ELSE)) {
+        stmt->command = parse_expression();
+    }
+
+    return stmt;
+}
+
+// ============== POKE STATEMENT ==============
+
+std::unique_ptr<ASTNode> Parser::parse_poke_stmt() {
+    expect(TokenType::POKE);
+
+    auto stmt = std::make_unique<PokeStmt>();
+    stmt->address = parse_expression();
+    expect(TokenType::COMMA);
+    stmt->value = parse_expression();
+
+    return stmt;
+}
+
+// ============== DEF SEG STATEMENT ==============
+
+std::unique_ptr<ASTNode> Parser::parse_def_seg_stmt() {
+    expect(TokenType::DEF);
+    // Consume "SEG" identifier
+    if (check(TokenType::IDENTIFIER) && current_token.value == "SEG") {
+        advance();
+    } else {
+        error("Expected SEG after DEF");
+    }
+
+    auto stmt = std::make_unique<DefSegStmt>();
+
+    // Optional = expression
+    if (match(TokenType::EQUALS)) {
+        stmt->segment = parse_expression();
+    }
+
+    return stmt;
+}
+
 std::unique_ptr<Program> Parser::parse() {
     auto program = std::make_unique<Program>();
-    
+
     skip_newlines();
     
     while (!check(TokenType::END_OF_FILE)) {
@@ -1743,19 +2703,33 @@ std::unique_ptr<Program> Parser::parse() {
         
         // After line number, check for DEF
         if (check(TokenType::DEF)) {
-            auto def_fn = parse_def_fn_stmt();
-            program->def_fns.push_back(std::move(def_fn));
-            
+            // Check for DEF SEG (not DEF FN)
+            if (pos + 1 < tokens.size() && tokens[pos + 1].type == TokenType::IDENTIFIER &&
+                tokens[pos + 1].value == "SEG") {
+                // DEF SEG - handled as a regular statement, put line number back
+                if (line_num > 0) {
+                    pos = saved_pos;
+                    current_token = tokens[pos];
+                }
+                auto stmt = parse_line();
+                if (stmt != nullptr) {
+                    program->statements.push_back(std::move(stmt));
+                }
+            } else {
+                auto def_fn = parse_def_fn_stmt();
+                program->def_fns.push_back(std::move(def_fn));
+            }
+
             if (match(TokenType::COLON)) {
                 continue;
             }
-            
+
             if (!check(TokenType::END_OF_FILE)) {
                 if (!match(TokenType::NEWLINE)) {
                     error("Expected newline or colon after statement");
                 }
             }
-            
+
             skip_newlines();
             continue;
         } else {
@@ -1786,4 +2760,90 @@ std::unique_ptr<Program> Parser::parse() {
     }
     
     return program;
+}
+
+// ============== PHASE 6: QB64 EXTENSION PARSING ==============
+
+std::unique_ptr<ASTNode> Parser::parse_display_stmt() {
+    expect(TokenType::QB_DISPLAY);
+    return std::make_unique<DisplayStmt>();
+}
+
+std::unique_ptr<ASTNode> Parser::parse_limit_stmt() {
+    expect(TokenType::QB_LIMIT);
+    auto stmt = std::make_unique<LimitStmt>();
+    stmt->fps = parse_expression();
+    return stmt;
+}
+
+std::unique_ptr<ASTNode> Parser::parse_freeimage_stmt() {
+    expect(TokenType::QB_FREEIMAGE);
+    auto stmt = std::make_unique<FreeImageStmt>();
+    stmt->handle = parse_expression();
+    return stmt;
+}
+
+std::unique_ptr<ASTNode> Parser::parse_putimage_stmt() {
+    // _PUTIMAGE (dx, dy), srcHandle[, destHandle]
+    // _PUTIMAGE , srcHandle  (full blit)
+    expect(TokenType::QB_PUTIMAGE);
+    auto stmt = std::make_unique<PutImageStmt>();
+
+    if (check(TokenType::LPAREN)) {
+        // Has destination coordinates
+        expect(TokenType::LPAREN);
+        stmt->dx = parse_expression();
+        expect(TokenType::COMMA);
+        stmt->dy = parse_expression();
+        expect(TokenType::RPAREN);
+    }
+
+    expect(TokenType::COMMA);
+    stmt->source_handle = parse_expression();
+
+    if (match(TokenType::COMMA)) {
+        stmt->dest_handle = parse_expression();
+    }
+
+    return stmt;
+}
+
+std::unique_ptr<ASTNode> Parser::parse_printstring_stmt() {
+    // _PRINTSTRING (x, y), text$
+    expect(TokenType::QB_PRINTSTRING);
+    auto stmt = std::make_unique<PrintStringStmt>();
+
+    expect(TokenType::LPAREN);
+    stmt->x = parse_expression();
+    expect(TokenType::COMMA);
+    stmt->y = parse_expression();
+    expect(TokenType::RPAREN);
+    expect(TokenType::COMMA);
+    stmt->text = parse_expression();
+
+    return stmt;
+}
+
+std::unique_ptr<ASTNode> Parser::parse_sndplay_stmt() {
+    expect(TokenType::QB_SNDPLAY);
+    auto stmt = std::make_unique<SndPlayStmt>();
+    stmt->handle = parse_expression();
+    return stmt;
+}
+
+std::unique_ptr<ASTNode> Parser::parse_sndstop_stmt() {
+    expect(TokenType::QB_SNDSTOP);
+    auto stmt = std::make_unique<SndStopStmt>();
+    stmt->handle = parse_expression();
+    return stmt;
+}
+
+std::unique_ptr<ASTNode> Parser::parse_sndvol_stmt() {
+    // _SNDVOL handle, volume
+    expect(TokenType::QB_SNDVOL);
+    auto stmt = std::make_unique<SndVolStmt>();
+    stmt->handle = parse_expression();
+    expect(TokenType::COMMA);
+    stmt->volume = parse_expression();
+    return stmt;
 }
