@@ -156,7 +156,7 @@ Dim Shared compilerPath  As String
 '  fbclaude (Anthropic API client) -- self-contained module.
 '  Pulled in from the existing vtclaude-main directory.
 ' ============================================================================
-#include once "../../libvt-examples/vtclaude-main/fbclaude.bas"
+#include once "src/fbclaude.bas"
 
 ' ============================================================================
 '  Forward declarations (cross-module)
