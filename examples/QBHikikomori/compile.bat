@@ -5,14 +5,14 @@ echo.
 echo Compiling with local GCC...
 echo.
 
-REM Compiler: C:\rbbasic-portable\mingw32\bin\gcc.exe
-REM SDL2 Include: C:\rbbasic-portable\lib\SDL2-mingw32\i686-w64-mingw32\include
-REM SDL2 Library: C:\rbbasic-portable\lib\SDL2-mingw32\i686-w64-mingw32\lib
-REM SDL2 Binary: C:\rbbasic-portable\lib\SDL2-mingw32\i686-w64-mingw32\bin
+REM Compiler: C:\fb_programming\git-fb\rbbasic\mingw32\bin\gcc.exe
+REM SDL2 Include: C:\fb_programming\git-fb\rbbasic\lib\SDL2-mingw32\i686-w64-mingw32\include
+REM SDL2 Library: C:\fb_programming\git-fb\rbbasic\lib\SDL2-mingw32\i686-w64-mingw32\lib
+REM SDL2 Binary: C:\fb_programming\git-fb\rbbasic\lib\SDL2-mingw32\i686-w64-mingw32\bin
 
-if not exist "C:\rbbasic-portable\mingw32\bin\gcc.exe" (
+if not exist "C:\fb_programming\git-fb\rbbasic\mingw32\bin\gcc.exe" (
     echo ERROR: GCC compiler not found!
-    echo Expected location: C:\rbbasic-portable\mingw32\bin\gcc.exe
+    echo Expected location: C:\fb_programming\git-fb\rbbasic\mingw32\bin\gcc.exe
     echo.
     echo Please ensure MinGW32 is installed in the correct location.
     echo Check rbc.config for path settings.
@@ -21,9 +21,9 @@ if not exist "C:\rbbasic-portable\mingw32\bin\gcc.exe" (
 )
 
 REM Compile the generated C code
-"C:\rbbasic-portable\mingw32\bin\gcc.exe" -m32 ^
-    -I"C:\rbbasic-portable\lib\SDL2-mingw32\i686-w64-mingw32\include" ^
-    -L"C:\rbbasic-portable\lib\SDL2-mingw32\i686-w64-mingw32\lib" ^
+"C:\fb_programming\git-fb\rbbasic\mingw32\bin\gcc.exe" -m32 ^
+    -I"C:\fb_programming\git-fb\rbbasic\lib\SDL2-mingw32\i686-w64-mingw32\include" ^
+    -L"C:\fb_programming\git-fb\rbbasic\lib\SDL2-mingw32\i686-w64-mingw32\lib" ^
     -Wall -Wno-unused-label -Wno-unknown-pragmas ^
     -std=c99 ^
     -O1 ^
@@ -62,18 +62,18 @@ echo ============================================
 echo.
 
 REM Copy SDL2 DLLs to current directory
-if exist "C:\rbbasic-portable\lib\SDL2-mingw32\i686-w64-mingw32\bin\SDL2.dll" (
-    copy /Y "C:\rbbasic-portable\lib\SDL2-mingw32\i686-w64-mingw32\bin\SDL2.dll" . >nul 2>&1
+if exist "C:\fb_programming\git-fb\rbbasic\lib\SDL2-mingw32\i686-w64-mingw32\bin\SDL2.dll" (
+    copy /Y "C:\fb_programming\git-fb\rbbasic\lib\SDL2-mingw32\i686-w64-mingw32\bin\SDL2.dll" . >nul 2>&1
     if not errorlevel 1 echo SDL2.dll copied successfully.
 ) else (
-    echo Warning: SDL2.dll not found at C:\rbbasic-portable\lib\SDL2-mingw32\i686-w64-mingw32\bin
+    echo Warning: SDL2.dll not found at C:\fb_programming\git-fb\rbbasic\lib\SDL2-mingw32\i686-w64-mingw32\bin
     echo Graphics programs may not run without SDL2.dll
 )
-if exist "C:\rbbasic-portable\lib\SDL2-mingw32\i686-w64-mingw32\bin\SDL2_image.dll" (
-    copy /Y "C:\rbbasic-portable\lib\SDL2-mingw32\i686-w64-mingw32\bin\SDL2_image.dll" . >nul 2>&1
+if exist "C:\fb_programming\git-fb\rbbasic\lib\SDL2-mingw32\i686-w64-mingw32\bin\SDL2_image.dll" (
+    copy /Y "C:\fb_programming\git-fb\rbbasic\lib\SDL2-mingw32\i686-w64-mingw32\bin\SDL2_image.dll" . >nul 2>&1
 )
-if exist "C:\rbbasic-portable\lib\SDL2-mingw32\i686-w64-mingw32\bin\SDL2_mixer.dll" (
-    copy /Y "C:\rbbasic-portable\lib\SDL2-mingw32\i686-w64-mingw32\bin\SDL2_mixer.dll" . >nul 2>&1
+if exist "C:\fb_programming\git-fb\rbbasic\lib\SDL2-mingw32\i686-w64-mingw32\bin\SDL2_mixer.dll" (
+    copy /Y "C:\fb_programming\git-fb\rbbasic\lib\SDL2-mingw32\i686-w64-mingw32\bin\SDL2_mixer.dll" . >nul 2>&1
 )
 echo.
 
